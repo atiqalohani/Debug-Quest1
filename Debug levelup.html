@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebugQuest — Master Debugging. Level Up.</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;600;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/*==================== RESET ====================*/
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#05050a;--surface:#0d0d18;--card:#13131f;
+  --green:#00ffaa;--green2:#00cc88;--green3:rgba(0,255,170,0.1);
+  --purple:#7c3aed;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;
+  --white:#f8faff;--muted:rgba(248,250,255,0.5);--faint:rgba(248,250,255,0.15);
+  --display:'Unbounded',sans-serif;--body:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  --ease:cubic-bezier(0.16,1,0.3,1);--r:12px;--r2:20px;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--white);font-family:var(--body);overflow-x:hidden;cursor:none;}
+::-webkit-scrollbar{width:2px;}::-webkit-scrollbar-thumb{background:var(--green);}
+
+/*==================== CURSOR ====================*/
+#cursor{position:fixed;width:12px;height:12px;background:var(--green);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s;mix-blend-mode:difference;}
+#cursor-trail{position:fixed;width:40px;height:40px;border:1px solid rgba(0,255,170,0.3);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left .15s var(--ease),top .15s var(--ease),width .3s,height .3s;}
+body:has(a:hover) #cursor,body:has(button:hover) #cursor{width:22px;height:22px;background:var(--purple);}
+
+/*==================== NOISE & STARS ====================*/
+#stars{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+.star{position:absolute;width:1px;height:1px;background:#fff;border-radius:50%;animation:twinkle var(--d,3s) var(--delay,0s) infinite;}
+@keyframes twinkle{0%,100%{opacity:0.1;transform:scale(1);}50%{opacity:0.8;transform:scale(1.5);}}
+body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");pointer-events:none;z-index:1;}
+
+/*==================== NAVBAR ====================*/
+#nav{position:fixed;top:0;left:0;right:0;z-index:100;height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;border-bottom:1px solid rgba(255,255,255,0.05);background:rgba(5,5,10,0.8);backdrop-filter:blur(24px);transition:background .3s;}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:15px;font-weight:700;color:var(--white);text-decoration:none;letter-spacing:-0.02em;}
+.nav-logo-box{width:30px;height:30px;background:linear-gradient(135deg,var(--green),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#000;}
+.nav-links{display:flex;gap:24px;}
+.nav-links a{font-size:13px;color:var(--muted);text-decoration:none;transition:color .2s;letter-spacing:.01em;}
+.nav-links a:hover{color:var(--white);}
+.nav-actions{display:flex;gap:10px;align-items:center;}
+.btn-ghost{padding:8px 20px;border-radius:100px;font-size:13px;font-weight:500;cursor:none;border:1px solid var(--faint);background:transparent;color:var(--white);font-family:var(--body);transition:all .2s;}
+.btn-ghost:hover{border-color:var(--green);color:var(--green);}
+.btn-solid{padding:9px 22px;border-radius:100px;font-size:13px;font-weight:700;cursor:none;border:none;background:var(--green);color:#000;font-family:var(--body);transition:all .2s;letter-spacing:.01em;}
+.btn-solid:hover{background:var(--green2);transform:translateY(-1px);box-shadow:0 8px 30px rgba(0,255,170,0.3);}
+
+/*==================== HERO ====================*/
+#hero{min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:100px 48px 60px;}
+#particle-canvas{position:absolute;inset:0;z-index:1;}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:orbFloat var(--t,8s) ease-in-out infinite;opacity:.4;}
+.orb1{width:600px;height:600px;background:radial-gradient(circle,rgba(124,58,237,0.6),transparent);top:-200px;right:-100px;--t:10s;}
+.orb2{width:400px;height:400px;background:radial-gradient(circle,rgba(0,255,170,0.4),transparent);bottom:-100px;left:-100px;--t:8s;animation-delay:-3s;}
+.orb3{width:300px;height:300px;background:radial-gradient(circle,rgba(59,130,246,0.4),transparent);top:50%;left:40%;--t:12s;animation-delay:-6s;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1);}33%{transform:translate(30px,-20px) scale(1.05);}66%{transform:translate(-20px,15px) scale(.96);}}
+.hero-content{position:relative;z-index:2;text-align:center;max-width:900px;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--green);border-radius:100px;padding:6px 18px;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--green);margin-bottom:32px;animation:fadeUp .8s var(--ease) both;background:rgba(0,255,170,0.05);}
+.hero-badge-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 1.8s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,170,0.6);}70%{box-shadow:0 0 0 8px rgba(0,255,170,0);}}
+.hero-title{font-family:var(--display);font-size:clamp(42px,8vw,110px);font-weight:900;line-height:.9;letter-spacing:-.04em;margin-bottom:28px;animation:fadeUp .8s .1s var(--ease) both;}
+.hero-title .t-green{color:var(--green);position:relative;display:inline-block;}
+.hero-title .t-green::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:3px;background:var(--green);border-radius:2px;transform:scaleX(0);animation:underlineGrow 1s .8s var(--ease) forwards;}
+@keyframes underlineGrow{to{transform:scaleX(1);}}
+.hero-title .t-dim{color:rgba(248,250,255,.22);}
+.glitch{position:relative;}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;right:0;}
+.glitch::before{color:#ff0080;animation:glitch1 4s infinite;top:0;clip-path:polygon(0 0,100% 0,100% 33%,0 33%);}
+.glitch::after{color:#00ffff;animation:glitch2 4s infinite;top:0;clip-path:polygon(0 67%,100% 67%,100% 100%,0 100%);}
+@keyframes glitch1{0%,90%,100%{transform:none;opacity:0;}92%{transform:translate(-3px,2px);opacity:.7;}94%{transform:translate(2px,-2px);opacity:.7;}96%{transform:none;opacity:0;}}
+@keyframes glitch2{0%,90%,100%{transform:none;opacity:0;}93%{transform:translate(3px,-1px);opacity:.7;}95%{transform:translate(-2px,2px);opacity:.7;}97%{transform:none;opacity:0;}}
+.hero-sub{font-size:18px;color:var(--muted);max-width:540px;margin:0 auto 44px;line-height:1.7;animation:fadeUp .8s .2s var(--ease) both;font-weight:300;}
+.hero-btns{display:flex;gap:14px;justify-content:center;animation:fadeUp .8s .3s var(--ease) both;}
+.hero-btn-p{padding:16px 36px;border-radius:100px;background:var(--green);color:#000;font-size:15px;font-weight:700;border:none;cursor:none;font-family:var(--body);transition:all .25s;position:relative;overflow:hidden;}
+.hero-btn-p::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2),transparent);opacity:0;transition:opacity .3s;}
+.hero-btn-p:hover::before{opacity:1;}
+.hero-btn-p:hover{transform:translateY(-3px);box-shadow:0 20px 60px rgba(0,255,170,0.4);}
+.hero-btn-s{padding:15px 32px;border-radius:100px;background:transparent;color:var(--white);font-size:15px;font-weight:500;border:1px solid var(--faint);cursor:none;font-family:var(--body);transition:all .25s;}
+.hero-btn-s:hover{border-color:var(--white);background:rgba(255,255,255,.04);}
+.hero-stats{display:flex;gap:48px;justify-content:center;margin-top:72px;padding-top:48px;border-top:1px solid rgba(255,255,255,.06);animation:fadeUp .8s .5s var(--ease) both;}
+.hero-stat-n{font-family:var(--mono);font-size:38px;font-weight:700;color:var(--green);line-height:1;}
+.hero-stat-l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em;margin-top:6px;}
+.scroll-indicator{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2;animation:fadeUp 1s .9s var(--ease) both;}
+.scroll-text{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.15em;}
+.scroll-line{width:1px;height:50px;background:linear-gradient(transparent,var(--green));animation:scrollAnim 1.5s ease infinite;}
+@keyframes scrollAnim{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+/*==================== ROBOT SECTION ====================*/
+#robot-section{padding:100px 48px;display:flex;align-items:center;justify-content:center;gap:80px;background:var(--surface);position:relative;overflow:hidden;}
+#robot-section::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(0,255,170,.04));}
+.robot-wrap{position:relative;z-index:2;flex-shrink:0;}
+.robot{width:220px;height:280px;position:relative;animation:robotBob 3s ease-in-out infinite;}
+@keyframes robotBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+.robot-head{width:140px;height:110px;background:linear-gradient(135deg,#1e1e3a,#2a2a4a);border:2px solid rgba(0,255,170,.3);border-radius:20px;position:absolute;top:0;left:50%;transform:translateX(-50%);box-shadow:0 0 30px rgba(0,255,170,.15),inset 0 1px 0 rgba(255,255,255,.1);}
+.robot-antenna{width:3px;height:30px;background:linear-gradient(to top,rgba(0,255,170,.6),var(--green));position:absolute;top:-32px;left:50%;transform:translateX(-50%);border-radius:2px;}
+.robot-antenna::after{content:'';width:10px;height:10px;background:var(--green);border-radius:50%;position:absolute;top:-5px;left:50%;transform:translateX(-50%);animation:antennaBlink 2s ease infinite;box-shadow:0 0 12px var(--green);}
+@keyframes antennaBlink{0%,100%{opacity:1;transform:translateX(-50%) scale(1);}50%{opacity:.4;transform:translateX(-50%) scale(.6);}}
+.robot-eyes{display:flex;gap:20px;justify-content:center;padding-top:28px;}
+.robot-eye{width:28px;height:22px;background:#000;border-radius:6px;position:relative;overflow:hidden;border:1px solid rgba(0,255,170,.2);}
+.robot-eye::after{content:'';width:14px;height:14px;background:var(--green);border-radius:3px;position:absolute;top:4px;left:7px;animation:eyeLook 5s ease infinite;box-shadow:0 0 8px var(--green);}
+@keyframes eyeLook{0%,45%,100%{transform:translate(0,0);}50%{transform:translate(3px,0);}55%,95%{transform:translate(0,0);}70%{transform:translate(-2px,2px);}}
+.robot-eye.blink::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#1e1e3a,#2a2a4a);z-index:1;animation:blink 4s ease infinite;}
+@keyframes blink{0%,90%,100%{transform:scaleY(0);}92%,98%{transform:scaleY(1);}}
+.robot-mouth{width:60px;height:18px;background:#000;border-radius:0 0 12px 12px;margin:12px auto 0;border:1px solid rgba(0,255,170,.2);display:flex;align-items:center;justify-content:center;gap:4px;overflow:hidden;}
+.robot-mouth-bar{width:6px;height:10px;background:var(--green);border-radius:2px;animation:mouthAnim 0.4s ease infinite alternate;}
+.robot-mouth-bar:nth-child(2){animation-delay:.1s;}
+.robot-mouth-bar:nth-child(3){animation-delay:.2s;}
+.robot-mouth-bar:nth-child(4){animation-delay:.3s;}
+.robot-mouth-bar:nth-child(5){animation-delay:.15s;}
+@keyframes mouthAnim{from{height:4px;opacity:.4}to{height:12px;opacity:1}}
+.robot-body{width:160px;height:130px;background:linear-gradient(135deg,#1a1a32,#262640);border:2px solid rgba(0,255,170,.2);border-radius:16px;position:absolute;top:120px;left:50%;transform:translateX(-50%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
+.robot-chest{width:100px;height:60px;background:#0d0d1a;border-radius:10px;margin:20px auto;border:1px solid rgba(0,255,170,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+.chest-bar{height:3px;border-radius:2px;animation:chestPulse 1.5s ease infinite;}
+.chest-bar1{width:70px;background:var(--green);animation-delay:0s;}
+.chest-bar2{width:50px;background:var(--purple);animation-delay:.2s;}
+.chest-bar3{width:60px;background:var(--blue);animation-delay:.4s;}
+@keyframes chestPulse{0%,100%{opacity:.3;transform:scaleX(.7);}50%{opacity:1;transform:scaleX(1);}}
+.robot-power{width:18px;height:18px;border:2px solid var(--green);border-radius:50%;margin:0 auto;position:relative;animation:powerGlow 2s ease infinite;}
+.robot-power::after{content:'';width:2px;height:8px;background:var(--green);position:absolute;top:-4px;left:50%;transform:translateX(-50%);}
+@keyframes powerGlow{0%,100%{box-shadow:0 0 5px var(--green);}50%{box-shadow:0 0 20px var(--green),0 0 40px rgba(0,255,170,.3);}}
+.robot-arm{width:30px;height:90px;background:linear-gradient(135deg,#1a1a32,#262640);border:1px solid rgba(0,255,170,.15);border-radius:10px;position:absolute;top:130px;}
+.robot-arm.left{left:-10px;animation:armWave 3s ease-in-out infinite;transform-origin:top center;}
+.robot-arm.right{right:-10px;animation:armWave 3s ease-in-out infinite;animation-delay:-1.5s;transform-origin:top center;}
+@keyframes armWave{0%,100%{transform:rotate(-5deg);}50%{transform:rotate(8deg);}}
+.robot-hand{width:24px;height:24px;background:linear-gradient(135deg,#1e1e3a,#2a2a4a);border:1px solid rgba(0,255,170,.2);border-radius:50%;position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);}
+.robot-legs{display:flex;gap:20px;justify-content:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);}
+.robot-leg{width:28px;height:50px;background:linear-gradient(135deg,#1a1a32,#262640);border:1px solid rgba(0,255,170,.15);border-radius:8px;}
+.robot-foot{width:34px;height:16px;background:linear-gradient(135deg,#1e1e3a,#2a2a4a);border:1px solid rgba(0,255,170,.2);border-radius:0 0 8px 8px;margin-top:2px;margin-left:-3px;}
+.robot-shadow{width:120px;height:20px;background:radial-gradient(ellipse,rgba(0,255,170,.2),transparent);border-radius:50%;margin:0 auto;animation:shadowPulse 3s ease-in-out infinite;}
+@keyframes shadowPulse{0%,100%{transform:scaleX(.9);opacity:.5;}50%{transform:scaleX(1.1);opacity:.8;}}
+.robot-speech{position:absolute;top:-60px;right:-120px;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.3);border-radius:16px;padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--green);white-space:nowrap;animation:speechBob 3s ease-in-out infinite;}
+.robot-speech::before{content:'';position:absolute;bottom:-8px;left:20px;width:16px;height:8px;background:rgba(5,5,10,.9);clip-path:polygon(0 0,100% 0,50% 100%);border-left:1px solid rgba(0,255,170,.3);}
+@keyframes speechBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.typing-text{border-right:2px solid var(--green);animation:typingCursor .7s step-end infinite;}
+@keyframes typingCursor{0%,100%{border-color:var(--green);}50%{border-color:transparent;}}
+.robot-info{z-index:2;}
+.robot-info h2{font-family:var(--display);font-size:clamp(32px,4vw,52px);font-weight:900;letter-spacing:-.03em;line-height:1;margin-bottom:16px;}
+.robot-info p{font-size:16px;color:var(--muted);line-height:1.7;max-width:420px;margin-bottom:28px;}
+.robot-features{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;}
+.robot-feat{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(248,250,255,.8);}
+.robot-feat-dot{width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);flex-shrink:0;}
+
+/*==================== TICKER ====================*/
+.ticker-wrap{overflow:hidden;padding:24px 0;background:rgba(0,255,170,.04);border-top:1px solid rgba(0,255,170,.1);border-bottom:1px solid rgba(0,255,170,.1);}
+.ticker-track{display:flex;gap:48px;white-space:nowrap;animation:ticker 20s linear infinite;}
+.ticker-track span{font-family:var(--display);font-size:64px;font-weight:900;color:rgba(255,255,255,.04);letter-spacing:-.04em;}
+.ticker-track span.accent{color:var(--green);opacity:.12;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/*==================== SECTIONS SHARED ====================*/
+.section{padding:110px 48px;position:relative;z-index:1;}
+.section.dark{background:var(--bg);}
+.section.surface{background:var(--surface);}
+.section.card-bg{background:var(--card);}
+.sec-center{text-align:center;display:flex;flex-direction:column;align-items:center;}
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.18em;margin-bottom:14px;}
+.sec-h2{font-family:var(--display);font-size:clamp(32px,5vw,68px);font-weight:900;letter-spacing:-.035em;line-height:.95;margin-bottom:18px;}
+.sec-p{font-size:16px;color:var(--muted);max-width:500px;line-height:1.7;margin-bottom:60px;font-weight:300;}
+
+/*==================== REVEAL ANIMATIONS ====================*/
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.reveal.visible{opacity:1;transform:none;}
+.reveal-d1{transition-delay:.1s;}.reveal-d2{transition-delay:.2s;}.reveal-d3{transition-delay:.3s;}.reveal-d4{transition-delay:.4s;}
+
+/*==================== IMAGES GRID ====================*/
+#images-section{background:var(--bg);padding:0;overflow:hidden;}
+.images-marquee{display:flex;gap:0;overflow:hidden;}
+.images-track{display:flex;gap:12px;animation:imgScroll 30s linear infinite;padding:12px;}
+.img-card{width:280px;height:200px;border-radius:16px;overflow:hidden;flex-shrink:0;position:relative;}
+.img-card img{width:100%;height:100%;object-fit:cover;transition:transform .4s var(--ease);}
+.img-card:hover img{transform:scale(1.05);}
+.img-card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,5,10,.8),transparent);display:flex;align-items:flex-end;padding:14px;}
+.img-card-label{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7);}
+@keyframes imgScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.images-track.reverse{animation-direction:reverse;}
+
+/*==================== FEATURES GRID ====================*/
+.feat-bento{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:1100px;}
+.feat-card{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:32px 28px;transition:all .35s var(--ease);position:relative;overflow:hidden;}
+.feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 0%,rgba(0,255,170,.08),transparent 65%);opacity:0;transition:opacity .4s;}
+.feat-card:hover::before{opacity:1;}
+.feat-card:hover{border-color:rgba(0,255,170,.25);transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.feat-card.wide{grid-column:span 2;}
+.feat-icon2{font-size:30px;margin-bottom:18px;}
+.feat-t{font-family:var(--display);font-size:19px;font-weight:700;margin-bottom:10px;letter-spacing:-.01em;}
+.feat-d{font-size:14px;color:var(--muted);line-height:1.65;}
+.feat-tag2{display:inline-block;margin-top:14px;padding:4px 12px;border-radius:100px;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);font-size:11px;color:var(--green);font-family:var(--mono);}
+
+/*==================== SPLIT SECTIONS ====================*/
+.split{min-height:100vh;display:flex;align-items:stretch;overflow:hidden;}
+.split-half{flex:1;}
+.split-sticky{position:sticky;top:0;height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 64px;}
+.split-scrolling{padding:80px 64px;display:flex;flex-direction:column;justify-content:center;gap:70px;}
+.split-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(0,255,170,.07);border:1px solid rgba(0,255,170,.2);border-radius:100px;padding:5px 15px;font-size:11px;color:var(--green);font-family:var(--mono);margin-bottom:20px;}
+.split-h2{font-family:var(--display);font-size:clamp(28px,4vw,52px);font-weight:900;letter-spacing:-.03em;line-height:1;margin-bottom:16px;}
+.split-p{font-size:15px;color:var(--muted);line-height:1.75;margin-bottom:28px;}
+.split-list{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;}
+.split-item{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(248,250,255,.75);}
+.split-dot{width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 6px var(--green);flex-shrink:0;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:13px 30px;border-radius:100px;background:var(--green);color:#000;font-size:14px;font-weight:700;border:none;cursor:none;font-family:var(--body);transition:all .2s;}
+.cta-btn:hover{background:var(--green2);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,255,170,.3);}
+
+/*==================== APP WINDOW ====================*/
+.app-window{background:#0a0a14;border:1px solid rgba(255,255,255,.08);border-radius:var(--r2);overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);width:100%;max-width:490px;}
+.aw-bar{background:#070710;padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.05);}
+.aw-dots{display:flex;gap:5px;}
+.aw-dot{width:11px;height:11px;border-radius:50%;}
+.aw-title-bar{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:10px;flex:1;}
+.aw-xp{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--faint);}
+.aw-xpbar{width:50px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.aw-xpfill{height:100%;background:var(--green);border-radius:2px;}
+.aw-tabs{display:flex;background:#070710;border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;}
+.aw-tab{padding:9px 14px;font-size:11px;color:var(--faint);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;}
+.aw-tab.on{color:var(--green);border-bottom-color:var(--green);}
+.aw-body{padding:18px;}
+.aw-prog{display:flex;gap:5px;margin-bottom:16px;}
+.aw-ps{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.06);}
+.aw-ps.d{background:var(--green);}
+.aw-ps.c{background:rgba(0,255,170,.35);}
+.aw-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin-bottom:8px;font-family:var(--mono);}
+.aw-badge.syn{background:rgba(239,68,68,.12);color:#fca5a5;}
+.aw-badge.log{background:rgba(245,158,11,.12);color:#fcd34d;}
+.aw-badge.run{background:rgba(59,130,246,.12);color:#93c5fd;}
+.aw-title{font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.aw-desc{font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5;}
+.aw-code{background:#050508;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px;font-family:var(--mono);font-size:11px;line-height:1.85;margin-bottom:10px;}
+.aw-btns{display:flex;gap:7px;}
+.aw-btn{padding:7px 14px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:var(--body);}
+.aw-btn-p{background:var(--green);color:#000;}
+.aw-btn-s{background:rgba(255,255,255,.06);color:rgba(248,250,255,.6);}
+.ck{color:#ff79c6;}.cf{color:var(--green);}.cn{color:#bd93f9;}.cs{color:#f1fa8c;}.cc{color:rgba(248,250,255,.28);font-style:italic;}
+.line-bug{background:rgba(239,68,68,.08);border-left:2px solid var(--red);padding-left:6px;margin-left:-6px;border-radius:0 4px 4px 0;}
+.line-fix{background:rgba(0,255,170,.06);border-left:2px solid var(--green);padding-left:6px;margin-left:-6px;border-radius:0 4px 4px 0;}
+
+/*==================== MCQ WINDOW ====================*/
+.mcq-win{background:#0a0a14;border:1px solid rgba(255,255,255,.07);border-radius:var(--r2);overflow:hidden;width:100%;max-width:490px;}
+.mcq-topics{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;}
+.mcq-topic-btn{padding:4px 12px;border-radius:100px;font-size:10px;border:1px solid rgba(255,255,255,.08);color:var(--faint);white-space:nowrap;cursor:pointer;}
+.mcq-topic-btn.on{background:rgba(124,58,237,.2);color:#c4b5fd;border-color:rgba(124,58,237,.4);}
+.mcq-body{padding:16px;}
+.mcq-q-text{font-size:13px;font-weight:500;color:var(--white);margin-bottom:12px;line-height:1.5;}
+.mcq-opt2{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:6px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.mcq-opt2:hover{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.12);}
+.mcq-opt2.ok{border-color:rgba(0,255,170,.3);background:rgba(0,255,170,.05);color:var(--green);}
+.mcq-opt2.no{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.05);color:#fca5a5;}
+.mcq-opt-l{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
+.mcq-result-mini{margin-top:12px;padding:12px 14px;background:rgba(0,255,170,.05);border:1px solid rgba(0,255,170,.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center;}
+.mcq-result-n{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--green);}
+
+/*==================== ANALYZER ====================*/
+.an-win{background:#0a0a14;border:1px solid rgba(255,255,255,.07);border-radius:var(--r2);overflow:hidden;width:100%;max-width:490px;}
+.an-langs{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);}
+.an-lang{padding:4px 12px;border-radius:100px;font-size:10px;border:1px solid rgba(255,255,255,.08);color:var(--faint);font-family:var(--mono);cursor:pointer;}
+.an-lang.on{background:rgba(124,58,237,.2);color:#c4b5fd;border-color:rgba(124,58,237,.4);}
+.an-body{padding:14px;}
+.an-issue{padding:9px 12px;border-radius:8px;border:1px solid;margin-bottom:7px;}
+.an-issue.e{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.2);}
+.an-issue.w{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2);}
+.an-issue.o{background:rgba(0,255,170,.04);border-color:rgba(0,255,170,.2);}
+.an-issue-t{font-size:11px;font-weight:700;margin-bottom:2px;font-family:var(--mono);}
+.an-issue.e .an-issue-t{color:#fca5a5;}.an-issue.w .an-issue-t{color:#fcd34d;}.an-issue.o .an-issue-t{color:var(--green);}
+.an-issue-b{font-size:10px;color:var(--faint);line-height:1.5;}
+
+/*==================== GAMIFICATION ====================*/
+.gamify-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;width:100%;max-width:980px;margin-bottom:52px;}
+.g-card{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:28px 22px;text-align:center;transition:all .35s var(--ease);position:relative;overflow:hidden;}
+.g-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(0,255,170,.06),transparent 70%);opacity:0;transition:opacity .4s;}
+.g-card:hover::after{opacity:1;}
+.g-card:hover{border-color:rgba(0,255,170,.2);transform:translateY(-5px);}
+.g-icon2{font-size:32px;display:block;margin-bottom:14px;}
+.g-val2{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--green);line-height:1;}
+.g-lbl2{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin-top:6px;}
+.badges-row2{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:48px;}
+.badge2{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.badge2-ring{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid;transition:all .3s;position:relative;}
+.badge2-ring.earned{border-color:var(--green);background:rgba(0,255,170,.08);animation:badgePulse2 3s ease infinite;}
+.badge2-ring.locked{border-color:rgba(255,255,255,.08);opacity:.3;filter:grayscale(1);}
+@keyframes badgePulse2{0%,100%{box-shadow:0 0 0 0 rgba(0,255,170,0);}50%{box-shadow:0 0 0 12px rgba(0,255,170,0);}}
+.badge2-name{font-size:11px;color:var(--faint);text-align:center;max-width:70px;}
+.badge2-ring.earned+.badge2-name{color:rgba(248,250,255,.6);font-weight:500;}
+.lb-box2{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:var(--r2);overflow:hidden;width:100%;max-width:500px;}
+.lb-hdr2{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.05);font-family:var(--mono);font-size:12px;color:var(--faint);}
+.lb-row2{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.03);font-size:13px;transition:background .2s;}
+.lb-row2:last-child{border-bottom:none;}
+.lb-row2.you{background:rgba(0,255,170,.04);}
+.lb-r2{font-family:var(--mono);font-size:11px;color:var(--faint);width:18px;}
+.lb-av2{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.lb-nm2{flex:1;color:rgba(248,250,255,.7);}
+.lb-row2.you .lb-nm2{color:var(--green);font-weight:600;}
+.lb-pts2{font-family:var(--mono);font-size:12px;color:var(--faint);}
+
+/*==================== LANGUAGES ====================*/
+.lang-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;width:100%;max-width:1000px;}
+.lang-card3{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:28px 22px;text-align:center;cursor:pointer;transition:all .35s var(--ease);position:relative;overflow:hidden;}
+.lang-card3::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .4s;}
+.lang-card3:hover::before{opacity:1;}
+.lang-card3:hover{transform:translateY(-8px);box-shadow:0 24px 80px rgba(0,0,0,.4);}
+.lang-card3.py:hover{border-color:rgba(55,159,217,.5);}.lang-card3.py::before{background:radial-gradient(circle at 50% 0%,rgba(55,159,217,.1),transparent 70%);}
+.lang-card3.js:hover{border-color:rgba(245,212,35,.5);}.lang-card3.js::before{background:radial-gradient(circle at 50% 0%,rgba(245,212,35,.08),transparent 70%);}
+.lang-card3.java:hover{border-color:rgba(237,91,33,.5);}.lang-card3.java::before{background:radial-gradient(circle at 50% 0%,rgba(237,91,33,.08),transparent 70%);}
+.lang-card3.cpp:hover{border-color:rgba(90,120,255,.5);}.lang-card3.cpp::before{background:radial-gradient(circle at 50% 0%,rgba(90,120,255,.1),transparent 70%);}
+.lang-card3.c:hover{border-color:rgba(168,85,247,.5);}.lang-card3.c::before{background:radial-gradient(circle at 50% 0%,rgba(168,85,247,.08),transparent 70%);}
+.lang-card3.web:hover{border-color:rgba(249,115,22,.5);}.lang-card3.web::before{background:radial-gradient(circle at 50% 0%,rgba(249,115,22,.08),transparent 70%);}
+.lang-card3.sql:hover{border-color:rgba(16,185,129,.5);}.lang-card3.sql::before{background:radial-gradient(circle at 50% 0%,rgba(16,185,129,.08),transparent 70%);}
+.lang-card3.rust:hover{border-color:rgba(244,63,94,.5);}.lang-card3.rust::before{background:radial-gradient(circle at 50% 0%,rgba(244,63,94,.08),transparent 70%);}
+.lang-em2{font-size:42px;display:block;margin-bottom:12px;}
+.lang-nm2{font-family:var(--display);font-size:17px;font-weight:700;margin-bottom:6px;}
+.lang-lvls2{font-size:12px;color:var(--faint);margin-bottom:14px;}
+.lang-bar2{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.lang-fill2{height:100%;border-radius:2px;transition:width .6s var(--ease);}
+
+/*==================== TESTIMONIALS ====================*/
+.testi-grid2{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1100px;}
+.testi-card3{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:var(--r2);padding:30px 26px;transition:all .3s var(--ease);}
+.testi-card3:hover{border-color:rgba(255,255,255,.14);transform:translateY(-3px);}
+.testi-stars3{display:flex;gap:3px;margin-bottom:16px;}
+.star3{color:var(--amber);font-size:14px;}
+.testi-txt2{font-size:14px;color:var(--muted);line-height:1.75;margin-bottom:22px;font-style:italic;font-weight:300;}
+.testi-auth2{display:flex;align-items:center;gap:12px;}
+.testi-av3{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+.testi-nm2{font-size:14px;font-weight:600;color:var(--white);}
+.testi-role3{font-size:11px;color:var(--faint);}
+
+/*==================== FAQ ====================*/
+.faq-list{width:100%;max-width:700px;}
+.faq-item3{border:1px solid rgba(255,255,255,.07);border-radius:var(--r);margin-bottom:10px;overflow:hidden;transition:border-color .2s;}
+.faq-item3.open{border-color:rgba(0,255,170,.25);}
+.faq-q3{padding:20px 24px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:15px;font-weight:500;color:rgba(248,250,255,.85);transition:color .2s;}
+.faq-q3:hover{color:var(--white);}
+.faq-tog{width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--faint);transition:all .3s;font-family:var(--mono);flex-shrink:0;}
+.faq-item3.open .faq-tog{background:var(--green);border-color:var(--green);color:#000;transform:rotate(45deg);}
+.faq-ans3{max-height:0;overflow:hidden;transition:max-height .45s var(--ease);}
+.faq-item3.open .faq-ans3{max-height:200px;}
+.faq-ans3-inner{padding:0 24px 20px;font-size:14px;color:var(--faint);line-height:1.75;font-weight:300;}
+
+/*==================== CTA ====================*/
+#cta-section{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px;position:relative;overflow:hidden;}
+.cta-glow2{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,170,.07),transparent 60%);top:50%;left:50%;transform:translate(-50%,-50%);animation:ctaGlow 4s ease-in-out infinite;}
+@keyframes ctaGlow{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.1);}}
+.cta-h2{font-family:var(--display);font-size:clamp(44px,7vw,96px);font-weight:900;letter-spacing:-.04em;line-height:.9;margin-bottom:26px;position:relative;z-index:1;}
+
+/*==================== FOOTER ====================*/
+footer{background:#030306;border-top:1px solid rgba(255,255,255,.05);padding:60px 48px 36px;}
+.footer-grid3{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px;}
+.footer-brand3 p{font-size:13px;color:var(--faint);line-height:1.7;max-width:280px;margin-top:14px;font-weight:300;}
+.footer-col-h2{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(248,250,255,.2);margin-bottom:16px;}
+.footer-links3{display:flex;flex-direction:column;gap:11px;}
+.footer-links3 a{font-size:13px;color:var(--faint);text-decoration:none;transition:color .2s;}
+.footer-links3 a:hover{color:var(--white);}
+.footer-bot{display:flex;justify-content:space-between;align-items:center;padding-top:28px;border-top:1px solid rgba(255,255,255,.04);}
+.footer-copy3{font-size:12px;color:rgba(248,250,255,.2);}
+.footer-socs{display:flex;gap:10px;}
+.footer-soc2{width:34px;height:34px;border:1px solid rgba(255,255,255,.08);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--faint);text-decoration:none;transition:all .2s;cursor:none;}
+.footer-soc2:hover{border-color:var(--green);color:var(--green);}
+
+/*==================== MODALS ====================*/
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(3,3,6,.95);
+  backdrop-filter:blur(20px);
+  z-index:600;
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+.overlay.open{display:flex;}
+
+/* ===== FIX: Auth status message styles ===== */
+/* auth-err-msg = red errors only */
+.auth-err4{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;display:none;}
+/* auth-info-msg = green OAuth loading / info states  — FIX: separate div from error div */
+.auth-info-msg{background:rgba(0,255,170,.07);border:1px solid rgba(0,255,170,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:16px;display:none;align-items:center;gap:8px;font-family:var(--mono);}
+.auth-spinner{width:14px;height:14px;border:2px solid rgba(0,255,170,.3);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.auth-box2{background:#0e0e1c;border:1px solid rgba(255,255,255,.1);border-radius:24px;width:min(440px,95vw);padding:40px;box-shadow:0 40px 120px rgba(0,0,0,.7);}
+.auth-icon2{width:56px;height:56px;background:linear-gradient(135deg,var(--green),var(--purple));border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:24px;font-weight:900;color:#000;margin:0 auto 14px;}
+.auth-h2{font-family:var(--display);font-size:22px;font-weight:700;color:var(--white);text-align:center;margin-bottom:4px;}
+.auth-p2{font-size:13px;color:var(--faint);text-align:center;margin-bottom:28px;}
+.auth-seg2{display:flex;background:rgba(255,255,255,.04);border-radius:12px;padding:3px;margin-bottom:24px;}
+.auth-seg2 button{flex:1;padding:9px;font-size:13px;font-weight:600;cursor:none;color:var(--faint);border-radius:10px;background:transparent;border:none;font-family:var(--body);transition:all .2s;}
+.auth-seg2 button.on{background:rgba(255,255,255,.08);color:var(--white);}
+.auth-field2{margin-bottom:16px;}
+.auth-field2 label{display:block;font-size:11px;font-weight:700;color:var(--faint);margin-bottom:7px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;}
+.auth-field2 input{width:100%;padding:12px 15px;border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:14px;font-family:var(--body);background:rgba(255,255,255,.03);color:var(--white);outline:none;transition:border-color .2s;}
+.auth-field2 input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,255,170,.1);}
+.auth-submit3{width:100%;padding:13px;border-radius:100px;background:var(--green);color:#000;font-size:15px;font-weight:700;border:none;cursor:none;font-family:var(--body);transition:all .2s;margin-bottom:18px;}
+.auth-submit3:hover{background:var(--green2);transform:translateY(-1px);}
+.auth-divider3{display:flex;align-items:center;gap:12px;font-size:12px;color:rgba(248,250,255,.18);margin-bottom:16px;}
+.auth-divider3::before,.auth-divider3::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.07);}
+.soc-btn3{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:14px;font-weight:600;cursor:none;background:rgba(255,255,255,.02);color:rgba(248,250,255,.8);font-family:var(--body);transition:all .2s;margin-bottom:10px;}
+.soc-btn3:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.2);}
+/* FIX: disabled state for OAuth loading */
+.soc-btn3:disabled{opacity:.5;cursor:not-allowed;pointer-events:none;}
+.soc-ic2{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.auth-note{font-size:11px;color:var(--faint);text-align:center;margin-top:14px;line-height:1.5;}
+.auth-note a{color:var(--green);text-decoration:none;}
+
+/* App modal */
+.app-box{
+  background:#0a0a14;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:0px; /* Remove border radius for full screen */
+  width:100vw;
+  height:100vh;
+  max-width:100vw;
+  max-height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  box-shadow:none;
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+}
+.app-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.06);}
+.app-logo2{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--white);display:flex;align-items:center;gap:9px;}
+.app-hdr-r{display:flex;align-items:center;gap:14px;}
+.app-stat{font-size:12px;color:var(--faint);font-family:var(--mono);display:flex;align-items:center;gap:6px;}
+.app-stat b{color:var(--white);}
+.app-xbar{width:52px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.app-xfill{height:100%;background:var(--green);border-radius:2px;transition:width .4s;}
+.app-av{width:32px;height:32px;border-radius:50%;background:rgba(0,255,170,.12);color:var(--green);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(0,255,170,.2);}
+.app-close{width:34px;height:34px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:var(--faint);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.app-close:hover{background:rgba(255,255,255,.06);color:var(--white);}
+.app-tabs2{display:flex;border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;overflow-x:auto;}
+.app-tab2{padding:11px 16px;font-size:13px;font-weight:500;color:var(--faint);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;font-family:var(--body);}
+.app-tab2.on{color:var(--green);border-bottom-color:var(--green);}
+.app-content{overflow-y:auto;flex:1;padding:0;}
+.app-close{
+  width:34px;
+  height:34px;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:9px;
+  color:var(--faint);
+  font-size:22px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s;
+}
+.app-close:hover{background:rgba(255,255,255,.15);color:var(--white);transform:scale(1.05);}
+.app-panel{display:none;padding:24px;}
+.app-panel.on{display:block;}
+.ig-prog2{display:flex;gap:5px;margin-bottom:18px;}
+.ig-ps2{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.06);}
+.ig-ps2.d{background:var(--green);}
+.ig-ps2.c{background:rgba(0,255,170,.35);}
+.ig-badge2{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;font-family:var(--mono);}
+.ig-badge2.syn{background:rgba(239,68,68,.12);color:#fca5a5;}
+.ig-badge2.log{background:rgba(245,158,11,.12);color:#fcd34d;}
+.ig-badge2.run{background:rgba(59,130,246,.12);color:#93c5fd;}
+.ig-title2{font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.ig-desc2{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+.ig-code-lbl2{font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-family:var(--mono);}
+.ig-ta{width:100%;min-height:140px;font-family:var(--mono);font-size:12px;line-height:1.8;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#060609;color:var(--white);resize:vertical;outline:none;transition:border-color .2s;}
+.ig-ta:focus{border-color:rgba(0,255,170,.35);box-shadow:0 0 0 3px rgba(0,255,170,.08);}
+.ig-hint2{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:10px;padding:10px 14px;font-size:12px;color:#fcd34d;margin-top:10px;line-height:1.5;display:none;}
+.ig-hint2.on{display:block;}
+.ig-fb2{margin-top:10px;padding:12px 15px;border-radius:12px;font-size:13px;line-height:1.6;display:none;}
+.ig-fb2.on{display:block;}
+.ig-fb2.ok{background:rgba(0,255,170,.06);border:1px solid rgba(0,255,170,.2);color:rgba(0,255,170,.9);}
+.ig-fb2.err{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);color:#fca5a5;}
+.ig-nxt2{margin-top:10px;display:none;gap:8px;flex-wrap:wrap;}
+.ig-nxt2.on{display:flex;}
+.ib3{padding:9px 20px;border-radius:100px;font-size:13px;font-weight:600;cursor:none;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(248,250,255,.65);font-family:var(--body);transition:all .2s;}
+.ib3:hover{background:rgba(255,255,255,.05);}
+.ib3:active{transform:scale(.97);}
+.ib3.p{background:var(--green);color:#000;border-color:var(--green);}
+.ib3.p:hover{background:var(--green2);}
+.it-pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+.itp2{padding:5px 14px;border-radius:100px;font-size:11px;font-weight:500;border:1px solid rgba(255,255,255,.09);color:var(--faint);cursor:none;background:transparent;font-family:var(--body);transition:all .2s;}
+.itp2.on{background:rgba(124,58,237,.15);color:#c4b5fd;border-color:rgba(124,58,237,.35);}
+.imcq-card2{background:#060609;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:18px;margin-bottom:12px;}
+.imcq-meta2{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.imcq-num2{font-family:var(--mono);font-size:10px;color:var(--faint);}
+.imcq-tp2{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(124,58,237,.14);color:#c4b5fd;font-family:var(--mono);}
+.imcq-q2{font-size:13px;font-weight:500;color:var(--white);margin-bottom:12px;line-height:1.55;}
+.imcq-opts2{display:flex;flex-direction:column;gap:7px;}
+.iopt2{display:flex;align-items:center;gap:9px;padding:10px 13px;border:1px solid rgba(255,255,255,.06);border-radius:9px;cursor:none;font-size:12px;color:var(--muted);transition:all .15s;}
+.iopt2:hover{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.12);}
+.iopt2.sel{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.08);color:#c4b5fd;}
+.iopt2.ok3{border-color:rgba(0,255,170,.35);background:rgba(0,255,170,.06);color:var(--green);}
+.iopt2.no3{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.05);color:#fca5a5;}
+.iopt2-l{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
+.iexpl2{margin-top:10px;padding:10px 13px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.18);border-radius:9px;font-size:12px;color:rgba(147,197,253,.9);line-height:1.55;display:none;}
+.iexpl2.on{display:block;}
+.iscore-banner2{text-align:center;padding:22px;background:rgba(0,255,170,.04);border:1px solid rgba(0,255,170,.14);border-radius:12px;margin-bottom:16px;}
+.iscore-n2{font-family:var(--mono);font-size:40px;font-weight:700;color:var(--green);}
+.iscore-l2{font-size:12px;color:var(--faint);margin-top:5px;}
+.ilangs2{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+.ilang2{padding:4px 13px;border-radius:100px;font-size:11px;font-weight:500;border:1px solid rgba(255,255,255,.09);color:var(--faint);cursor:none;background:transparent;font-family:var(--mono);transition:all .2s;}
+.ilang2.on{background:rgba(124,58,237,.15);color:#c4b5fd;border-color:rgba(124,58,237,.35);}
+.iissue2{padding:11px 13px;border-radius:9px;border:1px solid;margin-bottom:7px;}
+.iissue2.e{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.18);}
+.iissue2.w{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.18);}
+.iissue2.o{background:rgba(0,255,170,.04);border-color:rgba(0,255,170,.18);}
+.iissue2-t{font-size:11px;font-weight:700;margin-bottom:3px;font-family:var(--mono);}
+.iissue2.e .iissue2-t{color:#fca5a5;}.iissue2.w .iissue2-t{color:#fcd34d;}.iissue2.o .iissue2-t{color:var(--green);}
+.iissue2-b{font-size:11px;color:var(--faint);line-height:1.5;}
+.iissue2-fix{font-family:var(--mono);font-size:10px;margin-top:7px;padding:7px 10px;background:rgba(0,0,0,.4);border-radius:5px;color:rgba(248,250,255,.45);}
+.istats2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;}
+.iscard2{background:#060609;border-radius:10px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,.05);}
+.isnum2{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--white);}
+.islbl2{font-size:10px;color:var(--faint);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;}
+.isec2{font-size:10px;font-weight:700;color:rgba(248,250,255,.2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-family:var(--mono);}
+.ibdg2-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.ibdg2{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:#060609;min-width:70px;}
+.ibdg2-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.ibdg2-nm{font-size:10px;color:var(--faint);text-align:center;}
+.ibdg2.earned .ibdg2-nm{color:rgba(248,250,255,.6);font-weight:500;}
+.ibdg2.locked{opacity:.3;}
+.ilb2{border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;}
+.ilb2-row{display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.03);}
+.ilb2-row:last-child{border-bottom:none;}
+.ilb2-row.me3{background:rgba(0,255,170,.04);}
+.ilb2-rk{font-family:var(--mono);font-size:10px;color:var(--faint);width:16px;}
+.ilb2-av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.ilb2-nm{flex:1;color:rgba(248,250,255,.65);}
+.ilb2-row.me3 .ilb2-nm{color:var(--green);font-weight:600;}
+.ilb2-xp{font-family:var(--mono);font-size:11px;color:var(--faint);}
+/* FIX: provider badge pill in leaderboard */
+.ilb2-prov{font-size:9px;padding:1px 6px;border-radius:20px;background:rgba(255,255,255,.06);color:var(--faint);font-family:var(--mono);white-space:nowrap;}
+.ilb2-prov.gh{background:rgba(36,41,46,.6);color:#8b949e;}
+.ilb2-prov.go{background:rgba(234,67,53,.1);color:#fca5a5;}
+.ilb2-prov.em{background:rgba(0,255,170,.06);color:rgba(0,255,170,.6);}
+
+@media(max-width:900px){
+  #nav{padding:0 20px;}
+  .nav-links{display:none;}
+  .hero-stats{gap:24px;flex-wrap:wrap;}
+  #robot-section{flex-direction:column;gap:48px;padding:80px 24px;}
+  .section{padding:80px 24px;}
+  .split{flex-direction:column;}
+  .split-sticky{position:relative;height:auto;padding:48px 24px;}
+  .split-scrolling{padding:0 24px 64px;gap:48px;}
+  .feat-bento{grid-template-columns:1fr;}
+  .feat-card.wide{grid-column:span 1;}
+  .gamify-grid,.lang-grid2{grid-template-columns:repeat(2,1fr);}
+  .testi-grid2{grid-template-columns:1fr;}
+  .price-grid{grid-template-columns:1fr;}
+  .price-card2{border-right:none;border-bottom:1px solid rgba(255,255,255,.07);}
+  .price-card2:last-child{border-bottom:none;}
+  .footer-grid3{grid-template-columns:1fr 1fr;}
+  .istats2{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+<div id="stars"></div>
+<canvas id="particle-canvas"></canvas>
+
+<!-- ====== NAVBAR ====== -->
+<nav id="nav">
+  <a href="#" class="nav-logo"><div class="nav-logo-box">DQ</div>DebugQuest</a>
+  <div class="nav-links">
+    <a href="#robot-section">AI Robot</a>
+    <a href="#features">Features</a>
+    <a href="#game-split">Game</a>
+    <a href="#mcq-split">MCQ</a>
+    <a href="#languages">Languages</a>
+  </div>
+  <div class="nav-actions">
+    <button class="btn-ghost" onclick="openAuth()">Sign in</button>
+    <button class="btn-solid" onclick="openAuth()">Start free →</button>
+  </div>
+</nav>
+
+<!-- ====== HERO ====== -->
+<section id="hero">
+  <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+  <div class="hero-content">
+    <div class="hero-badge"><span class="hero-badge-dot"></span>v3.0 · AI Robot + 90 MCQs + 8 Languages</div>
+    <h1 class="hero-title">
+      <span class="glitch" data-text="Debug.">Debug.</span><br>
+      <span class="t-green">Level up.</span><br>
+      <span class="t-dim">Ship faster.</span>
+    </h1>
+    <p class="hero-sub">The game-based debugging platform where CS students fix real bugs, ace MCQ quizzes, and get instant AI-powered code analysis — across 8 programming languages.</p>
+    <div class="hero-btns">
+      <button class="hero-btn-p" onclick="openAuth()">Start playing free</button>
+      <a href="#robot-section" class="hero-btn-s">Meet the AI Robot ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-n" id="count1">0</div><div class="hero-stat-l">Challenges</div></div>
+      <div class="hero-stat"><div class="hero-stat-n" id="count2">0</div><div class="hero-stat-l">MCQ Questions</div></div>
+      <div class="hero-stat"><div class="hero-stat-n" id="count3">0</div><div class="hero-stat-l">Languages</div></div>
+      <div class="hero-stat"><div class="hero-stat-n">AI</div><div class="hero-stat-l">Code Analyzer</div></div>
+    </div>
+  </div>
+  <div class="scroll-indicator"><span class="scroll-text">SCROLL</span><div class="scroll-line"></div></div>
+</section>
+
+<!-- ====== IMAGES MARQUEE ====== -->
+<section id="images-section">
+  <div class="images-marquee"><div class="images-track" id="img-track-1"></div></div>
+  <div class="images-marquee" style="margin-top:12px;"><div class="images-track reverse" id="img-track-2"></div></div>
+</section>
+
+<!-- ====== TICKER ====== -->
+<div class="ticker-wrap">
+  <div class="ticker-track">
+    <span>DEBUG</span><span class="accent">·</span><span>LEVEL UP</span><span class="accent">·</span><span>FIX BUGS</span><span class="accent">·</span><span>EARN XP</span><span class="accent">·</span><span>MASTER CODE</span><span class="accent">·</span>
+    <span>DEBUG</span><span class="accent">·</span><span>LEVEL UP</span><span class="accent">·</span><span>FIX BUGS</span><span class="accent">·</span><span>EARN XP</span><span class="accent">·</span><span>MASTER CODE</span><span class="accent">·</span>
+  </div>
+</div>
+
+<!-- ====== ROBOT SECTION ====== -->
+<section id="robot-section" class="surface" style="padding:100px 80px;">
+  <div class="robot-wrap reveal">
+    <div class="robot">
+      <div class="robot-antenna"></div>
+      <div class="robot-head">
+        <div class="robot-eyes"><div class="robot-eye blink"></div><div class="robot-eye"></div></div>
+        <div class="robot-mouth"><div class="robot-mouth-bar"></div><div class="robot-mouth-bar"></div><div class="robot-mouth-bar"></div><div class="robot-mouth-bar"></div><div class="robot-mouth-bar"></div></div>
+      </div>
+      <div class="robot-speech"><span class="typing-text" id="robot-speech-text"></span></div>
+      <div class="robot-body">
+        <div class="robot-chest"><div class="chest-bar chest-bar1"></div><div class="chest-bar chest-bar2"></div><div class="chest-bar chest-bar3"></div></div>
+        <div class="robot-power"></div>
+      </div>
+      <div class="robot-arm left"><div class="robot-hand"></div></div>
+      <div class="robot-arm right"><div class="robot-hand"></div></div>
+      <div class="robot-legs"><div><div class="robot-leg"></div><div class="robot-foot"></div></div><div><div class="robot-leg"></div><div class="robot-foot"></div></div></div>
+    </div>
+    <div class="robot-shadow"></div>
+  </div>
+  <div class="robot-info reveal reveal-d2">
+    <div class="eyebrow">AI Assistant</div>
+    <h2 class="sec-h2" style="text-align:left;">Meet your<br><span style="color:var(--green)">debugging</span><br>companion</h2>
+    <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:420px;margin-bottom:28px;">Our AI robot analyzes your code in real-time, explains bugs in plain language, and suggests fixes instantly. Powered by Claude — the most capable AI assistant available.</p>
+    <div class="robot-features">
+      <div class="robot-feat"><div class="robot-feat-dot"></div>Detects syntax, logic, and runtime errors</div>
+      <div class="robot-feat"><div class="robot-feat-dot"></div>Explains WHY each bug is a problem</div>
+      <div class="robot-feat"><div class="robot-feat-dot"></div>Suggests corrected code inline</div>
+      <div class="robot-feat"><div class="robot-feat-dot"></div>Supports 8 programming languages</div>
+      <div class="robot-feat"><div class="robot-feat-dot"></div>Responds in under 2 seconds</div>
+    </div>
+    <button class="cta-btn" onclick="openAuth()">Try AI Analyzer →</button>
+  </div>
+</section>
+
+<!-- ====== FEATURES ====== -->
+<section id="features" class="section dark sec-center">
+  <div class="eyebrow reveal">Everything you need</div>
+  <h2 class="sec-h2 reveal">Built for real learning</h2>
+  <p class="sec-p reveal">Every feature is designed around how developers actually learn — by doing, failing, understanding, and repeating.</p>
+  <div class="feat-bento">
+    <div class="feat-card reveal"><div class="feat-icon2">🐛</div><div class="feat-t">Debugging Game</div><div class="feat-d">Fix broken code across 10 challenge types. Syntax, logic, runtime, recursion. Earn XP for every fix.</div><span class="feat-tag2">10 challenge types</span></div>
+    <div class="feat-card reveal reveal-d1"><div class="feat-icon2">📝</div><div class="feat-t">Topic-wise MCQ</div><div class="feat-d">90+ questions across 8 languages and topics. Instant explanations after every submission.</div><span class="feat-tag2">90+ questions</span></div>
+    <div class="feat-card reveal reveal-d2"><div class="feat-icon2">🤖</div><div class="feat-t">AI Robot Analyzer</div><div class="feat-d">Animated AI robot analyzes your code — errors, warnings, and optimizations in under 2 seconds.</div><span class="feat-tag2">Powered by Claude</span></div>
+    <div class="feat-card wide reveal"><div class="feat-icon2">🏆</div><div class="feat-t">Full Gamification System</div><div class="feat-d">XP points, levels, achievement badges, daily streaks, and global leaderboards. Every session counts toward mastery.</div><span class="feat-tag2">XP · Levels · Badges · Streaks · Leaderboards</span></div>
+    <div class="feat-card reveal reveal-d1"><div class="feat-icon2">📊</div><div class="feat-t">Progress Dashboard</div><div class="feat-d">Track bugs fixed, MCQ accuracy, streaks, and XP growth over time with detailed analytics.</div><span class="feat-tag2">Full analytics</span></div>
+    <div class="feat-card reveal reveal-d2"><div class="feat-icon2">⚡</div><div class="feat-t">Instant Feedback</div><div class="feat-d">Every submission gets immediate, detailed feedback. No waiting — just clear explanations of what went wrong.</div><span class="feat-tag2">Real-time</span></div>
+  </div>
+</section>
+
+<!-- ====== TICKER 2 ====== -->
+<div class="ticker-wrap">
+  <div class="ticker-track" style="animation-direction:reverse;">
+    <span>PYTHON</span><span class="accent">·</span><span>JAVASCRIPT</span><span class="accent">·</span><span>JAVA</span><span class="accent">·</span><span>C++</span><span class="accent">·</span><span>C</span><span class="accent">·</span><span>HTML/CSS</span><span class="accent">·</span><span>SQL</span><span class="accent">·</span><span>RUST</span><span class="accent">·</span>
+    <span>PYTHON</span><span class="accent">·</span><span>JAVASCRIPT</span><span class="accent">·</span><span>JAVA</span><span class="accent">·</span><span>C++</span><span class="accent">·</span><span>C</span><span class="accent">·</span><span>HTML/CSS</span><span class="accent">·</span><span>SQL</span><span class="accent">·</span><span>RUST</span><span class="accent">·</span>
+  </div>
+</div>
+
+<!-- ====== GAME SPLIT ====== -->
+<section id="game-split" class="split" style="background:linear-gradient(150deg,var(--bg),#0a1a10);">
+  <div class="split-half">
+    <div class="split-sticky">
+      <div class="app-window">
+        <div class="aw-bar"><div class="aw-dots"><div class="aw-dot" style="background:#ff5f57"></div><div class="aw-dot" style="background:#febc2e"></div><div class="aw-dot" style="background:#28c840"></div></div><div class="aw-title-bar">DebugQuest — Game</div><div class="aw-xp">Lv 3 · <b style="color:var(--white)">340</b> XP<div class="aw-xpbar"><div class="aw-xpfill" style="width:68%"></div></div></div></div>
+        <div class="aw-tabs"><div class="aw-tab on">🐛 Game</div><div class="aw-tab">📝 MCQ</div><div class="aw-tab">🤖 AI</div><div class="aw-tab">📊 Stats</div></div>
+        <div class="aw-body">
+          <div class="aw-prog"><div class="aw-ps d"></div><div class="aw-ps d"></div><div class="aw-ps c"></div><div class="aw-ps"></div><div class="aw-ps"></div></div>
+          <div class="aw-badge run">Runtime Error · Hard</div>
+          <div class="aw-title">Missing recursive base case</div>
+          <div class="aw-desc">This Python factorial causes RecursionError. What critical part is missing?</div>
+          <div class="aw-code">
+            <div><span class="ck">def</span> <span class="cf">factorial</span>(n):</div>
+            <div class="line-bug">    <span class="cc"># ❌ crashes — add base case</span></div>
+            <div>    <span class="ck">return</span> n * <span class="cf">factorial</span>(n - <span class="cn">1</span>)</div>
+          </div>
+          <div class="aw-btns"><div class="aw-btn aw-btn-p">▶ Run &amp; Check</div><div class="aw-btn aw-btn-s">💡 Hint</div><div class="aw-btn aw-btn-s">👁 Reveal</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="split-half">
+    <div class="split-scrolling">
+      <div class="reveal">
+        <div class="split-tag">🎮 Debugging Game</div>
+        <h2 class="split-h2">Fix bugs.<br>Earn XP.<br>Win.</h2>
+        <p class="split-p">Each level gives you broken code. Find the bug, fix it, move on. Faster fixes = more XP. Use hints if stuck — but they cost 5 XP.</p>
+        <div class="split-list">
+          <div class="split-item"><div class="split-dot"></div>10 debugging challenges across Python & JavaScript</div>
+          <div class="split-item"><div class="split-dot"></div>Syntax, logic, runtime & recursion error types</div>
+          <div class="split-item"><div class="split-dot"></div>Hint system: helpful but costs XP</div>
+          <div class="split-item"><div class="split-dot"></div>Detailed explanations for every bug type</div>
+          <div class="split-item"><div class="split-dot"></div>Progress bar tracks challenge completion</div>
+        </div>
+        <button class="cta-btn" onclick="openAuth()">Play now →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MCQ SPLIT ====== -->
+<section id="mcq-split" class="split surface">
+  <div class="split-half">
+    <div class="split-scrolling">
+      <div class="reveal">
+        <div class="split-tag">📝 MCQ Quiz</div>
+        <h2 class="split-h2">90+ questions.<br>8 languages.<br>Every topic.</h2>
+        <p class="split-p">The largest MCQ bank for CS students — covering Python, JavaScript, Java, C, C++, Web Dev, SQL, DSA, OOP, and Rust. +10 XP per correct answer.</p>
+        <div class="split-list">
+          <div class="split-item"><div class="split-dot"></div>Python (10q) — types, loops, OOP, decorators</div>
+          <div class="split-item"><div class="split-dot"></div>JavaScript (10q) — closures, async, DOM, ES6+</div>
+          <div class="split-item"><div class="split-dot"></div>Java (8q) — generics, threads, exceptions</div>
+          <div class="split-item"><div class="split-dot"></div>C/C++ (8q each) — pointers, memory, STL</div>
+          <div class="split-item"><div class="split-dot"></div>Web (8q) · SQL (8q) · DSA (10q) · OOP (8q) · Rust (6q)</div>
+        </div>
+        <button class="cta-btn" onclick="openAuth()">Take the quiz →</button>
+      </div>
+    </div>
+  </div>
+  <div class="split-half">
+    <div class="split-sticky">
+      <div class="mcq-win">
+        <div class="aw-bar"><div class="aw-dots"><div class="aw-dot" style="background:#ff5f57"></div><div class="aw-dot" style="background:#febc2e"></div><div class="aw-dot" style="background:#28c840"></div></div><div class="aw-title-bar">MCQ Quiz — 90+ Questions</div></div>
+        <div class="mcq-topics"><div class="mcq-topic-btn on">Python</div><div class="mcq-topic-btn">JavaScript</div><div class="mcq-topic-btn">Java</div><div class="mcq-topic-btn">C/C++</div><div class="mcq-topic-btn">Web</div><div class="mcq-topic-btn">SQL</div><div class="mcq-topic-btn">DSA</div></div>
+        <div class="mcq-body">
+          <div class="mcq-q-text">What is the time complexity of binary search on a sorted array?</div>
+          <div class="mcq-opt2"><span class="mcq-opt-l">A</span>O(n)</div>
+          <div class="mcq-opt2 ok"><span class="mcq-opt-l" style="background:rgba(0,255,170,.1);border-color:rgba(0,255,170,.3);color:var(--green);">B</span>O(log n) ✓</div>
+          <div class="mcq-opt2 no"><span class="mcq-opt-l" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:#fca5a5;">C</span>O(n²)</div>
+          <div class="mcq-opt2"><span class="mcq-opt-l">D</span>O(1)</div>
+          <div class="mcq-result-mini"><div><div class="mcq-result-n">7/10</div><div style="font-size:11px;color:var(--faint);">correct</div></div><div style="font-family:var(--mono);font-size:13px;color:rgba(0,255,170,.7);">+70 XP</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== ANALYZER SPLIT ====== -->
+<section id="analyzer-split" class="split dark">
+  <div class="split-half">
+    <div class="split-sticky">
+      <div class="an-win">
+        <div class="aw-bar"><div class="aw-dots"><div class="aw-dot" style="background:#ff5f57"></div><div class="aw-dot" style="background:#febc2e"></div><div class="aw-dot" style="background:#28c840"></div></div><div class="aw-title-bar">🤖 AI Robot Analyzer</div></div>
+        <div class="an-langs"><div class="an-lang on">Python</div><div class="an-lang">JS</div><div class="an-lang">Java</div><div class="an-lang">C++</div><div class="an-lang">C</div><div class="an-lang">Web</div></div>
+        <div class="an-body">
+          <div class="aw-code" style="margin-bottom:12px;">
+            <div><span class="ck">def</span> <span class="cf">countdown</span>(n):</div>
+            <div>    <span class="ck">while</span> n &gt; <span class="cn">0</span>:</div>
+            <div>        <span class="cf">print</span>(n)</div>
+            <div class="line-bug">    <span class="ck">return</span> <span class="cs">'Done!'</span></div>
+          </div>
+          <div class="an-issue e"><div class="an-issue-t">❌ Infinite loop detected</div><div class="an-issue-b">n is never decremented — loop runs forever.</div></div>
+          <div class="an-issue w"><div class="an-issue-t">⚠️ Missing n -= 1</div><div class="an-issue-b">Add n -= 1 inside the while body to fix.</div></div>
+          <div class="an-issue o"><div class="an-issue-t">✅ Good loop structure</div><div class="an-issue-b">while condition and return statement are correct.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="split-half">
+    <div class="split-scrolling">
+      <div class="reveal">
+        <div class="split-tag">🤖 AI Robot</div>
+        <h2 class="split-h2">Your personal<br>AI debugging<br>companion.</h2>
+        <p class="split-p">Paste any code and the robot analyzes it instantly — catching errors your IDE misses, explaining root causes, and suggesting fixes.</p>
+        <div class="split-list">
+          <div class="split-item"><div class="split-dot"></div>Powered by Claude — Anthropic's frontier AI</div>
+          <div class="split-item"><div class="split-dot"></div>Detects syntax errors, infinite loops, type mismatches</div>
+          <div class="split-item"><div class="split-dot"></div>Suggests corrected code snippets inline</div>
+          <div class="split-item"><div class="split-dot"></div>Explains WHY each issue is a problem</div>
+          <div class="split-item"><div class="split-dot"></div>Supports Python, JS, Java, C, C++, Web, SQL, Rust</div>
+        </div>
+        <button class="cta-btn" onclick="openAuth()">Try the analyzer →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== GAMIFICATION ====== -->
+<section id="gamify" class="section surface sec-center">
+  <div class="eyebrow reveal">Gamification</div>
+  <h2 class="sec-h2 reveal">Learning that keeps<br>you hooked</h2>
+  <p class="sec-p reveal">Game mechanics proven to increase practice time and skill retention. Every session counts.</p>
+  <div class="gamify-grid reveal">
+    <div class="g-card"><span class="g-icon2">⚡</span><div class="g-val2">+20</div><div class="g-lbl2">XP per bug fixed</div></div>
+    <div class="g-card"><span class="g-icon2">🔥</span><div class="g-val2">7</div><div class="g-lbl2">Day best streak</div></div>
+    <div class="g-card"><span class="g-icon2">🏆</span><div class="g-val2">16</div><div class="g-lbl2">Total badges</div></div>
+    <div class="g-card"><span class="g-icon2">📈</span><div class="g-val2">Lv 20</div><div class="g-lbl2">Max level</div></div>
+  </div>
+  <div class="badges-row2 reveal">
+    <div class="badge2"><div class="badge2-ring earned">🐛</div><div class="badge2-name">First Fix</div></div>
+    <div class="badge2"><div class="badge2-ring earned">⚡</div><div class="badge2-name">5 in a Row</div></div>
+    <div class="badge2"><div class="badge2-ring earned">🔤</div><div class="badge2-name">Syntax Pro</div></div>
+    <div class="badge2"><div class="badge2-ring earned">📝</div><div class="badge2-name">Quiz Starter</div></div>
+    <div class="badge2"><div class="badge2-ring earned">🤖</div><div class="badge2-name">AI User</div></div>
+    <div class="badge2"><div class="badge2-ring locked">🧠</div><div class="badge2-name">Logic King</div></div>
+    <div class="badge2"><div class="badge2-ring locked">🔥</div><div class="badge2-name">10 Streak</div></div>
+    <div class="badge2"><div class="badge2-ring locked">💨</div><div class="badge2-name">Speed Demon</div></div>
+    <div class="badge2"><div class="badge2-ring locked">🌍</div><div class="badge2-name">All Languages</div></div>
+    <div class="badge2"><div class="badge2-ring locked">💯</div><div class="badge2-name">Perfect Score</div></div>
+  </div>
+  <div class="lb-box2 reveal">
+    <div class="lb-hdr2">🏆 Global Leaderboard</div>
+    <div class="lb-row2"><span class="lb-r2">1</span><div class="lb-av2" style="background:#1e1830;color:#c4b5fd;">SA</div><span class="lb-nm2">Sara A.</span><span class="lb-pts2">1,240 XP</span></div>
+    <div class="lb-row2"><span class="lb-r2">2</span><div class="lb-av2" style="background:#0b1e14;color:#5DCAA5;">JM</div><span class="lb-nm2">João M.</span><span class="lb-pts2">980 XP</span></div>
+    <div class="lb-row2 you"><span class="lb-r2">3</span><div class="lb-av2" style="background:#081a0e;color:var(--green);">YO</div><span class="lb-nm2">You</span><span class="lb-pts2">340 XP</span></div>
+    <div class="lb-row2"><span class="lb-r2">4</span><div class="lb-av2" style="background:#1e1508;color:#fcd34d;">RK</div><span class="lb-nm2">Riya K.</span><span class="lb-pts2">290 XP</span></div>
+    <div class="lb-row2"><span class="lb-r2">5</span><div class="lb-av2" style="background:#1e0a0a;color:#fca5a5;">TL</div><span class="lb-nm2">Tim L.</span><span class="lb-pts2">155 XP</span></div>
+  </div>
+</section>
+
+<!-- ====== LANGUAGES ====== -->
+<section id="languages" class="section dark sec-center">
+  <div class="eyebrow reveal">Languages</div>
+  <h2 class="sec-h2 reveal">One platform,<br>every language</h2>
+  <p class="sec-p reveal">8 programming languages with challenges and MCQs designed around each language's unique bugs and gotchas.</p>
+  <div class="lang-grid2 reveal">
+    <div class="lang-card3 py"><div class="lang-em2">🐍</div><div class="lang-nm2">Python</div><div class="lang-lvls2">10 MCQs · 32 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#379fd9;width:75%"></div></div></div>
+    <div class="lang-card3 js"><div class="lang-em2">🟡</div><div class="lang-nm2">JavaScript</div><div class="lang-lvls2">10 MCQs · 24 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#f5d423;width:65%"></div></div></div>
+    <div class="lang-card3 java"><div class="lang-em2">☕</div><div class="lang-nm2">Java</div><div class="lang-lvls2">8 MCQs · 18 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#ed5b21;width:50%"></div></div></div>
+    <div class="lang-card3 cpp"><div class="lang-em2">⚙️</div><div class="lang-nm2">C++</div><div class="lang-lvls2">8 MCQs · 14 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#5a78ff;width:40%"></div></div></div>
+    <div class="lang-card3 c"><div class="lang-em2">🔷</div><div class="lang-nm2">C</div><div class="lang-lvls2">8 MCQs · 12 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#a855f7;width:35%"></div></div></div>
+    <div class="lang-card3 web"><div class="lang-em2">🌐</div><div class="lang-nm2">Web (HTML/CSS)</div><div class="lang-lvls2">8 MCQs · 10 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#f97316;width:45%"></div></div></div>
+    <div class="lang-card3 sql"><div class="lang-em2">🗄️</div><div class="lang-nm2">SQL</div><div class="lang-lvls2">8 MCQs · 10 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#10b981;width:38%"></div></div></div>
+    <div class="lang-card3 rust"><div class="lang-em2">🦀</div><div class="lang-nm2">Rust</div><div class="lang-lvls2">6 MCQs · 8 challenges</div><div class="lang-bar2"><div class="lang-fill2" style="background:#f43f5e;width:25%"></div></div></div>
+  </div>
+</section>
+
+<!-- ====== TESTIMONIALS ====== -->
+<section id="testimonials" class="section surface sec-center">
+  <div class="eyebrow reveal">Testimonials</div>
+  <h2 class="sec-h2 reveal">Students love it</h2>
+  <p class="sec-p reveal">Real feedback from CS students who used DebugQuest to sharpen skills.</p>
+  <div class="testi-grid2 reveal">
+    <div class="testi-card3"><div class="testi-stars3"><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span></div><p class="testi-txt2">"I failed my first debugging lab. After 2 weeks on DebugQuest I went from struggling with syntax errors to catching logic bugs at a glance. It genuinely changed how I read code."</p><div class="testi-auth2"><div class="testi-av3" style="background:#1e1830;color:#c4b5fd;">AR</div><div><div class="testi-nm2">Aisha R.</div><div class="testi-role3">CS Junior, LUMS</div></div></div></div>
+    <div class="testi-card3"><div class="testi-stars3"><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span></div><p class="testi-txt2">"The AI robot analyzer is unreal. I paste my assignment code and it immediately catches the bug my professor couldn't explain for 20 minutes. Game changer."</p><div class="testi-auth2"><div class="testi-av3" style="background:#0b1e14;color:#5DCAA5;">KM</div><div><div class="testi-nm2">Kareem M.</div><div class="testi-role3">CS Sophomore, Cairo Uni</div></div></div></div>
+    <div class="testi-card3"><div class="testi-stars3"><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span><span class="star3">★</span></div><p class="testi-txt2">"Used DebugQuest for 3 weeks before my technical interview. Got asked to debug a recursive function — fixed it in 90 seconds. Landed the internship at a top tech company."</p><div class="testi-auth2"><div class="testi-av3" style="background:#1e1508;color:#fcd34d;">PL</div><div><div class="testi-nm2">Priya L.</div><div class="testi-role3">CS Senior, IIT Bombay</div></div></div></div>
+  </div>
+</section>
+
+<!-- ====== FAQ ====== -->
+<section id="faq" class="section surface sec-center">
+  <div class="eyebrow reveal">FAQ</div>
+  <h2 class="sec-h2 reveal">Common questions</h2>
+  <div class="faq-list reveal">
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">Is DebugQuest free to start?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">Yes! Free tier includes 5 game challenges per day and all 90+ MCQ questions. No credit card required. The AI Robot Analyzer requires Pro since it uses Claude's API.</div></div></div>
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">How does the GitHub/Google login work?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">Clicking GitHub or Google redirects you to the official OAuth login page for that provider. After you authenticate, you're redirected back to DebugQuest. In this demo, the redirect is simulated — a real deployment needs Firebase Auth or similar backend.</div></div></div>
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">How does the AI Robot Analyzer work?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">The robot sends your code to Claude (Anthropic's AI) which analyzes it for syntax errors, logical bugs, and performance issues. It returns structured feedback with explanations and fix suggestions in under 2 seconds.</div></div></div>
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">What languages are supported?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">Python, JavaScript, Java, C++, C, HTML/CSS/Web, SQL, and Rust. Each language has dedicated MCQ questions and debugging challenges. More languages added regularly.</div></div></div>
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">Is this good for technical interview prep?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">Absolutely. Debugging and DSA are tested in FAANG and top tech interviews. DebugQuest's challenges mirror real code review bugs. The DSA and OOP MCQs cover common interview theory topics.</div></div></div>
+    <div class="faq-item3" onclick="toggleFAQ(this)"><div class="faq-q3">Can I use it on mobile?<span class="faq-tog">+</span></div><div class="faq-ans3"><div class="faq-ans3-inner">Yes, the website is fully responsive. An Android app via Capacitor is in development. iOS support is planned. The MCQ quiz works especially well on mobile.</div></div></div>
+  </div>
+</section>
+
+<!-- ====== CTA ====== -->
+<section id="cta-section" class="dark">
+  <div class="cta-glow2"></div>
+  <div class="eyebrow reveal" style="position:relative;z-index:1;">Get started today</div>
+  <h2 class="cta-h2 reveal" style="position:relative;z-index:1;">Ready to become<br>a better<br><span style="color:var(--green)">debugger?</span></h2>
+  <p style="font-size:18px;color:var(--muted);max-width:400px;line-height:1.7;margin-bottom:44px;position:relative;z-index:1;" class="reveal">Join thousands of CS students improving their debugging skills every day.</p>
+  <div style="display:flex;gap:14px;position:relative;z-index:1;" class="reveal">
+    <button class="hero-btn-p" onclick="openAuth()">Start for free →</button>
+    <a href="#features" class="hero-btn-s">Learn more</a>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer>
+  <div class="footer-grid3">
+    <div class="footer-brand3"><a href="#" class="nav-logo" style="margin-bottom:14px;display:inline-flex;"><div class="nav-logo-box">B</div>DebugQuest</a><p>The game-based debugging platform for CS students. Fix bugs, earn XP, and become a better developer — in 8 languages.</p></div>
+    <div><div class="footer-col-h2">Product</div><div class="footer-links3"><a href="#game-split">Debugging Game</a><a href="#mcq-split">MCQ Quiz</a><a href="#analyzer-split">AI Robot</a></div></div>
+    <div><div class="footer-col-h2">Resources</div><div class="footer-links3"><a href="#">Documentation</a><a href="#">Blog</a><a href="#">Changelog</a><a href="#">Community</a></div></div>
+    <div><div class="footer-col-h2">Company</div><div class="footer-links3"><a href="#">About</a><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Contact</a></div></div>
+  </div>
+  <div class="footer-bot"><span class="footer-copy3">© 2025 DebugQuest. Built for CS students.</span><div class="footer-socs"><a href="https://github.com" target="_blank" class="footer-soc2">gh</a><a href="https://twitter.com" target="_blank" class="footer-soc2">tw</a><a href="https://linkedin.com" target="_blank" class="footer-soc2">li</a></div></div>
+</footer>
+
+<!-- ====== AUTH MODAL ====== -->
+<div class="overlay" id="auth-overlay">
+  <div class="auth-box2">
+    <div class="auth-icon2">B</div>
+    <div class="auth-h2">Welcome to DebugQuest</div>
+    <div class="auth-p2">Sign in to start earning XP and fixing bugs</div>
+    <div class="auth-seg2">
+      <button class="on" onclick="authSeg('login',this)">Sign in</button>
+      <button onclick="authSeg('signup',this)">Sign up</button>
+    </div>
+
+    <!-- FIX: Separate error (red) and info (green) message divs -->
+    <div class="auth-err4" id="auth-err-msg"></div>
+    <div class="auth-info-msg" id="auth-info-msg">
+      <div class="auth-spinner"></div>
+      <span id="auth-info-text"></span>
+    </div>
+
+    <div id="form-login-inner">
+      <div class="auth-field2"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" onkeypress="if(event.key==='Enter')doLogin()"></div>
+      <div class="auth-field2"><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••" onkeypress="if(event.key==='Enter')doLogin()"></div>
+      <button class="auth-submit3" onclick="doLogin()">Sign in →</button>
+    </div>
+    <div id="form-signup-inner" style="display:none;">
+      <div class="auth-field2"><label>Full name</label><input type="text" id="auth-name" placeholder="Your name"></div>
+      <div class="auth-field2"><label>Email</label><input type="email" id="auth-email2" placeholder="you@example.com"></div>
+      <div class="auth-field2"><label>Password</label><input type="password" id="auth-pass2" placeholder="Min 6 characters"></div>
+      <button class="auth-submit3" onclick="doSignup()">Create account →</button>
+    </div>
+
+    <div class="auth-divider3">or continue with</div>
+    <!-- FIX: Added id to buttons so we can disable them during OAuth loading -->
+    <button class="soc-btn3" id="btn-github" onclick="githubLogin()">
+      <div class="soc-ic2" style="background:#24292e;color:#fff;font-family:var(--mono);font-size:10px;">gh</div>Continue with GitHub
+    </button>
+    <button class="soc-btn3" id="btn-google" onclick="googleLogin()">
+      <div class="soc-ic2" style="background:#EA4335;color:#fff;font-size:13px;">G</div>Continue with Google
+    </button>
+    <div class="auth-note">By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.<br>Demo: any email + password works.</div>
+  </div>
+</div>
+
+<!-- ====== APP MODAL ====== -->
+<div class="overlay" id="app-overlay">
+  <div class="app-box">
+    <div class="app-hdr">
+      <div class="app-logo2"><div class="nav-logo-box" style="width:22px;height:22px;font-size:11px;">B</div>DebugQuest</div>
+      <div class="app-hdr-r">
+        <div class="app-stat">Lv <b id="am-lv">1</b> · <b id="am-xp">0</b> XP <div class="app-xbar"><div class="app-xfill" id="am-xbar" style="width:0%"></div></div></div>
+        <div class="app-av" id="am-av" onclick="logoutApp()" title="Click to sign out">?</div>
+        <button class="app-close" onclick="closeApp()">×</button>
+      </div>
+    </div>
+    <div class="app-tabs2">
+      <div class="app-tab2 on" onclick="switchTab('game')">🐛 Game</div>
+      <div class="app-tab2" onclick="switchTab('mcq')">📝 MCQ Quiz</div>
+      <div class="app-tab2" onclick="switchTab('analyzer')">🤖 AI Robot</div>
+      <div class="app-tab2" onclick="switchTab('progress')">📊 Progress</div>
+    </div>
+    <div class="app-content">
+
+      <!-- GAME PANEL -->
+      <div class="app-panel on" id="ap-game">
+        <div class="ig-prog2" id="ig-prog2"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div><span class="ig-badge2" id="ig-badge2">Syntax</span><div class="ig-title2" id="ig-title2"></div></div>
+          <span id="ig-diff2" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;"></span>
+        </div>
+        <div class="ig-desc2" id="ig-desc2"></div>
+        <div class="ig-code-lbl2">Buggy code — find and fix the bug</div>
+        <textarea class="ig-ta" id="ig-ta" spellcheck="false"></textarea>
+        <div class="ig-hint2" id="ig-hint2"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <button class="ib3 p" onclick="checkSol()">▶ Run &amp; Check</button>
+          <button class="ib3" onclick="toggleHint()">💡 Hint (−5 XP)</button>
+          <button class="ib3" onclick="revealAns()">👁 Reveal</button>
+        </div>
+        <div class="ig-fb2" id="ig-fb2"></div>
+        <div class="ig-nxt2" id="ig-nxt2"><button class="ib3 p" onclick="nextCh()">Next challenge →</button></div>
+      </div>
+
+      <!-- MCQ PANEL -->
+      <div class="app-panel" id="ap-mcq">
+        <div class="it-pills" id="it-pills2"></div>
+        <div id="imcq-c2"></div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button class="ib3 p" id="imcq-sub2" onclick="submitMCQ()">Submit answers</button>
+          <button class="ib3" onclick="resetMCQ()">Reset</button>
+        </div>
+      </div>
+
+      <!-- ANALYZER PANEL -->
+      <div class="app-panel" id="ap-analyzer">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="font-size:28px;animation:robotBob 2s ease-in-out infinite;">🤖</div>
+          <div><div style="font-size:14px;font-weight:600;color:var(--white);">AI Robot Analyzer</div><div style="font-size:12px;color:var(--faint);">Paste any code for instant bug analysis</div></div>
+        </div>
+        <div class="ilangs2" id="ilangs2">
+          <button class="ilang2 on" onclick="setLang('Python',this)">Python</button>
+          <button class="ilang2" onclick="setLang('JavaScript',this)">JavaScript</button>
+          <button class="ilang2" onclick="setLang('Java',this)">Java</button>
+          <button class="ilang2" onclick="setLang('C++',this)">C++</button>
+          <button class="ilang2" onclick="setLang('C',this)">C</button>
+          <button class="ilang2" onclick="setLang('Web',this)">HTML/CSS</button>
+          <button class="ilang2" onclick="setLang('SQL',this)">SQL</button>
+          <button class="ilang2" onclick="setLang('Rust',this)">Rust</button>
+        </div>
+        <textarea class="ig-ta" id="ian-ta" placeholder="# Paste your code here..." style="min-height:160px;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="ib3 p" onclick="analyzeCode()">🤖 Analyze with AI</button>
+          <button class="ib3" onclick="document.getElementById('ian-ta').value='';document.getElementById('ian-result').innerHTML=''">Clear</button>
+        </div>
+        <div id="ian-result" style="margin-top:14px;"></div>
+      </div>
+
+      <!-- PROGRESS PANEL -->
+      <div class="app-panel" id="ap-progress">
+        <div class="istats2">
+          <div class="iscard2"><div class="isnum2" id="ip-bugs2">0</div><div class="islbl2">Bugs fixed</div></div>
+          <div class="iscard2"><div class="isnum2" id="ip-mcq2">0</div><div class="islbl2">MCQs correct</div></div>
+          <div class="iscard2"><div class="isnum2" id="ip-streak2">1</div><div class="islbl2">Day streak</div></div>
+          <div class="iscard2"><div class="isnum2" id="ip-xp2">0</div><div class="islbl2">Total XP</div></div>
+        </div>
+        <div class="isec2">Badges</div>
+        <div class="ibdg2-grid" id="badges-grid"></div>
+        <div class="isec2" style="margin-top:4px;">Leaderboard</div>
+        <div class="ilb2" id="lb-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================= INIT ============================= */
+const starsEl=document.getElementById('stars');
+for(let i=0;i<120;i++){
+  const s=document.createElement('div');s.className='star';
+  s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';
+  s.style.setProperty('--d',2+Math.random()*4+'s');
+  s.style.setProperty('--delay',Math.random()*4+'s');
+  s.style.opacity=Math.random()*.6;
+  starsEl.appendChild(s);
+}
+
+const curEl=document.getElementById('cursor'),trailEl=document.getElementById('cursor-trail');
+document.addEventListener('mousemove',e=>{
+  curEl.style.left=e.clientX+'px';curEl.style.top=e.clientY+'px';
+  setTimeout(()=>{trailEl.style.left=e.clientX+'px';trailEl.style.top=e.clientY+'px';},100);
+});
+
+const canvas=document.getElementById('particle-canvas');
+canvas.style.cssText='position:absolute;inset:0;z-index:1;pointer-events:none;';
+const ctx=canvas.getContext('2d');
+let particles=[];
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+for(let i=0;i<60;i++){particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.3,o:Math.random()*.4+.1});}
+function animParticles(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0||p.x>canvas.width)p.vx*=-1;
+    if(p.y<0||p.y>canvas.height)p.vy*=-1;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,255,170,${p.o})`;ctx.fill();
+  });
+  for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){
+    const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<120){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(0,255,170,${.06*(1-dist/120)})`;ctx.lineWidth=.5;ctx.stroke();}
+  }
+  requestAnimationFrame(animParticles);
+}
+animParticles();
+
+function countUp(id,target,suffix=''){
+  let n=0,step=Math.ceil(target/60);
+  const el=document.getElementById(id);
+  const t=setInterval(()=>{n=Math.min(n+step,target);el.textContent=n+(suffix||'');if(n>=target)clearInterval(t);},30);
+}
+setTimeout(()=>{countUp('count1',200,'+');countUp('count2',90,'+');countUp('count3',8);},600);
+
+window.addEventListener('scroll',()=>{
+  const y=window.scrollY;
+  document.querySelector('.orb1').style.transform=`translateY(${y*.15}px)`;
+  document.querySelector('.orb2').style.transform=`translateY(${y*.08}px)`;
+  document.getElementById('nav').style.background=y>60?'rgba(5,5,10,0.95)':'rgba(5,5,10,0.8)';
+});
+
+const revObs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:.1});
+document.querySelectorAll('.reveal').forEach(el=>revObs.observe(el));
+
+/* ============================= IMAGES ============================= */
+const codingImages=[
+  {url:'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=560&q=80',label:'Terminal & Code'},
+  {url:'https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=560&q=80',label:'Python Development'},
+  {url:'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=560&q=80',label:'Java Programming'},
+  {url:'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=560&q=80',label:'Web Development'},
+  {url:'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=560&q=80',label:'Code Editor'},
+  {url:'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=560&q=80',label:'Laptop & Code'},
+  {url:'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=560&q=80',label:'Debugging Session'},
+  {url:'https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=560&q=80',label:'Developer Workspace'},
+  {url:'https://images.unsplash.com/photo-1593720219276-0b1eacd0aef4?w=560&q=80',label:'Algorithm Visualization'},
+  {url:'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=560&q=80',label:'Data Structures'},
+  {url:'https://images.unsplash.com/photo-1583195764036-6dc248ac07d9?w=560&q=80',label:'C++ Development'},
+  {url:'https://images.unsplash.com/photo-1537432376769-00f5c2f4c8d2?w=560&q=80',label:'Full Stack Dev'},
+];
+function buildImageTrack(trackId,images){
+  const track=document.getElementById(trackId);
+  const doubled=[...images,...images];
+  doubled.forEach(img=>{
+    const card=document.createElement('div');card.className='img-card';
+    card.innerHTML=`<img src="${img.url}" alt="${img.label}" loading="lazy"><div class="img-card-overlay"><span class="img-card-label">${img.label}</span></div>`;
+    track.appendChild(card);
+  });
+}
+buildImageTrack('img-track-1',codingImages);
+buildImageTrack('img-track-2',[...codingImages].reverse());
+
+/* ============================= ROBOT SPEECH ============================= */
+const speeches=['Analyzing your code...','Found a bug! 🐛','Missing base case!','Syntax error on line 3','Loop never terminates!','Off-by-one error ⚠️','Great code! ✅','Null pointer detected','Memory leak found!','Logic error fixed! 🎉'];
+let speechIdx=0,charIdx=0;
+const speechEl=document.getElementById('robot-speech-text');
+function typeRobotSpeech(){
+  if(charIdx<speeches[speechIdx].length){
+    speechEl.textContent=speeches[speechIdx].slice(0,charIdx+1);charIdx++;
+    setTimeout(typeRobotSpeech,70);
+  } else {
+    setTimeout(()=>{speechIdx=(speechIdx+1)%speeches.length;charIdx=0;typeRobotSpeech();},2200);
+  }
+}
+typeRobotSpeech();
+
+/* ============================= FAQ ============================= */
+function toggleFAQ(el){el.classList.toggle('open');}
+
+/* ======================================================================
+   AUTH — FIXED SECTION
+   Bug 1 fixed: launchApp() no longer references ip-av2/ip-name2/ip-provider
+                before buildProgressPanel() creates them.
+   Bug 2 fixed: showAuthErr() and showOAuthLoading() use separate divs so
+                red error styles never get mixed with green loading styles.
+   Bug 3 fixed: OAuth buttons are disabled during loading to prevent double-fire.
+   Bug 4 fixed: githubLogin/googleLogin are clean with proper state management.
+   ====================================================================== */
+
+function openAuth(){
+  // Reset all message states when opening the modal fresh
+  hideAllAuthMsgs();
+  document.getElementById('auth-overlay').classList.add('open');
+}
+function closeAuth(){
+  document.getElementById('auth-overlay').classList.remove('open');
+  // Re-enable OAuth buttons and restore auth forms visibility
+  resetOAuthButtons();
+}
+
+document.getElementById('auth-overlay').addEventListener('click',function(e){
+  if(e.target===this)closeAuth();
+});
+
+function authSeg(mode,el){
+  document.querySelectorAll('.auth-seg2 button').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('form-login-inner').style.display=mode==='login'?'block':'none';
+  document.getElementById('form-signup-inner').style.display=mode==='signup'?'block':'none';
+  hideAllAuthMsgs();
+}
+
+/* ---- FIX: Two separate message functions for error vs info ---- */
+function hideAllAuthMsgs(){
+  document.getElementById('auth-err-msg').style.display='none';
+  document.getElementById('auth-info-msg').style.display='none';
+}
+
+// BUG 2 FIX: Red error messages go here — no more green bleed-through
+function showAuthErr(msg){
+  hideAllAuthMsgs();
+  const e=document.getElementById('auth-err-msg');
+  e.textContent=msg;
+  e.style.display='block';
+}
+
+// BUG 2 FIX: Green loading/info messages go in a SEPARATE div
+function showOAuthLoading(provider){
+  hideAllAuthMsgs();
+  document.getElementById('auth-info-text').textContent=`Connecting to ${provider}... (demo: logging you in)`;
+  document.getElementById('auth-info-msg').style.display='flex';
+  // BUG 3 FIX: Disable OAuth buttons to prevent double-tap
+  document.getElementById('btn-github').disabled=true;
+  document.getElementById('btn-google').disabled=true;
+  // Hide email/password forms during OAuth loading
+  document.getElementById('form-login-inner').style.opacity='0.4';
+  document.getElementById('form-signup-inner').style.opacity='0.4';
+}
+
+function resetOAuthButtons(){
+  const gh=document.getElementById('btn-github');
+  const go=document.getElementById('btn-google');
+  if(gh)gh.disabled=false;
+  if(go)go.disabled=false;
+  document.getElementById('form-login-inner').style.opacity='1';
+  document.getElementById('form-signup-inner').style.opacity='1';
+}
+
+/* ---- Email/password login ---- */
+function doLogin(){
+  const em=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-pass').value;
+  if(!em||!em.includes('@')){showAuthErr('Please enter a valid email address.');return;}
+  if(!pw||pw.length<1){showAuthErr('Please enter your password.');return;}
+  const name=em.split('@')[0].replace(/[^a-zA-Z0-9 ]/g,' ').trim()||'User';
+  launchApp(name,'email');
+}
+
+function doSignup(){
+  const nm=document.getElementById('auth-name').value.trim();
+  const em=document.getElementById('auth-email2').value.trim();
+  const pw=document.getElementById('auth-pass2').value;
+  if(!nm){showAuthErr('Please enter your full name.');return;}
+  if(!em||!em.includes('@')){showAuthErr('Please enter a valid email address.');return;}
+  if(pw.length<6){showAuthErr('Password must be at least 6 characters.');return;}
+  launchApp(nm,'email');
+}
+
+/* ---- BUG 4 FIX: GitHub OAuth — clean, no broken client ID references ----
+   For a real deployment: replace the demo block with the commented-out
+   window.location.href redirect pointing to your backend OAuth handler.   */
+function githubLogin(){
+  showOAuthLoading('GitHub');
+  /*
+  // Real GitHub OAuth (requires backend to exchange code for token):
+  const clientId = 'YOUR_REAL_GITHUB_CLIENT_ID';
+  const redirectUri = encodeURIComponent(window.location.origin + '/auth/github/callback');
+  window.location.href =
+    `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`;
+  return; // stop here in real deployment
+  */
+  // Demo simulation — auto-login after 1.8s
+  setTimeout(()=>{
+    launchApp('GitHub User','github');
+  },1800);
+}
+
+/* ---- BUG 4 FIX: Google OAuth — clean, no broken client ID references ----
+   For a real deployment: use Firebase Auth or replace with your OAuth redirect. */
+function googleLogin(){
+  showOAuthLoading('Google');
+  /*
+  // Real Google OAuth (requires Firebase or your own backend):
+  // import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+  // const provider = new GoogleAuthProvider();
+  // signInWithPopup(getAuth(), provider).then(result => launchApp(result.user.displayName, 'google'));
+  // return;
+  */
+  // Demo simulation — auto-login after 1.8s
+  setTimeout(()=>{
+    launchApp('Google User','google');
+  },1800);
+}
+
+/* ---- BUG 1 FIX: launchApp no longer references elements that don't exist yet.
+   ip-av2, ip-name2, ip-provider are created inside buildProgressPanel() —
+   calling them BEFORE that function ran caused TypeError: null. Fixed by
+   letting buildProgressPanel() own all user-info DOM updates.             ---- */
+function launchApp(name,provider){
+  const ini=name.split(' ').filter(Boolean).map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'ST';
+  currentUser={name,ini,provider};
+
+  closeAuth(); // hides overlay, resets OAuth buttons
+
+  // Update the header avatar — this element exists statically in the HTML
+  document.getElementById('am-av').textContent=ini;
+
+  // Initialize all app state
+  updateHdr();
+  buildProgress();
+  loadChallenge();
+  loadMCQ();
+  buildProgressPanel(); // creates ip-av2, ip-name2, ip-xp2b, ip-provider INSIDE this call
+
+  document.getElementById('app-overlay').classList.add('open');
+}
+
+function closeApp(){document.getElementById('app-overlay').classList.remove('open');}
+function logoutApp(){
+  if(confirm('Sign out of DebugQuest?')){
+    closeApp();
+    xp=0;solvedBugs=0;mcqCorrect=0;currentCh=0;
+    currentUser={name:'',ini:'ST',provider:''};
+  }
+}
+
+/* ============================= CHALLENGES ============================= */
+const challenges=[
+  {title:"Fix the broken function",desc:"This Python function should return the sum of a list but crashes. Find the syntax error.",type:"Syntax",tc:"syn",diff:"Easy",dc:"background:rgba(0,255,170,.12);color:rgba(0,255,170,.9);",
+   buggy:"def sum_list(numbers)\n    total = 0\n    for n in numbers:\n        total += n\n    return total",
+   fix:"def sum_list(numbers):\n    total = 0\n    for n in numbers:\n        total += n\n    return total",
+   hint:"Every Python function def needs a specific punctuation mark after the parentheses.",
+   explain:"Missing colon (:) after def sum_list(numbers). Python requires a colon at the end of every function, if, for, and while header."},
+  {title:"Off-by-one loop error",desc:"Should print numbers 1 through 10, but the number 10 never prints.",type:"Logic",tc:"log",diff:"Easy",dc:"background:rgba(245,158,11,.12);color:#fcd34d;",
+   buggy:"def print_numbers():\n    for i in range(1, 10):\n        print(i)",
+   fix:"def print_numbers():\n    for i in range(1, 11):\n        print(i)",
+   hint:"Python's range() stop value is exclusive — it stops BEFORE reaching it.",
+   explain:"range(1,10) generates 1–9 only. Use range(1,11) to include 10. This is the classic off-by-one error."},
+  {title:"Variable before assignment",desc:"This JavaScript function crashes with ReferenceError on line 2.",type:"Runtime",tc:"run",diff:"Medium",dc:"background:rgba(59,130,246,.12);color:#93c5fd;",
+   buggy:"function greet(name) {\n  console.log('Hello ' + greeting);\n  const greeting = 'Hi, ' + name;\n}",
+   fix:"function greet(name) {\n  const greeting = 'Hi, ' + name;\n  console.log('Hello ' + greeting);\n}",
+   hint:"JavaScript const/let cannot be accessed before their declaration line (Temporal Dead Zone).",
+   explain:"greeting is used on line 2 but declared on line 3. Move the const above the console.log to fix the Temporal Dead Zone error."},
+  {title:"Infinite while loop",desc:"This countdown never finishes — it runs forever. Find the missing statement.",type:"Logic",tc:"log",diff:"Medium",dc:"background:rgba(245,158,11,.12);color:#fcd34d;",
+   buggy:"def countdown(n):\n    while n > 0:\n        print(n)\n    return 'Done!'",
+   fix:"def countdown(n):\n    while n > 0:\n        print(n)\n        n -= 1\n    return 'Done!'",
+   hint:"The loop checks n > 0 every time, but does anything inside the loop change n?",
+   explain:"Without n -= 1 inside the loop, n never decreases so the condition stays True forever."},
+  {title:"Missing recursive base case",desc:"This Python factorial causes RecursionError (stack overflow). What's missing?",type:"Runtime",tc:"run",diff:"Hard",dc:"background:rgba(239,68,68,.12);color:#fca5a5;",
+   buggy:"def factorial(n):\n    return n * factorial(n - 1)",
+   fix:"def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)",
+   hint:"Every recursive function needs a base case — a condition that stops it calling itself infinitely.",
+   explain:"Without if n <= 1: return 1, the function recurses forever. The base case stops recursion at n=1."},
+  {title:"Wrong comparison operator",desc:"This function should check if a number is even, but it has a SyntaxError.",type:"Syntax",tc:"syn",diff:"Easy",dc:"background:rgba(0,255,170,.12);color:rgba(0,255,170,.9);",
+   buggy:"def is_even(n):\n    if n % 2 = 0:\n        return True\n    return False",
+   fix:"def is_even(n):\n    if n % 2 == 0:\n        return True\n    return False",
+   hint:"In Python, = is for assignment. A different operator checks equality in conditions.",
+   explain:"Using = instead of == in an if statement causes a SyntaxError. Use == for comparison, = only for assignment."},
+  {title:"List index out of range",desc:"This function tries to get the last element but crashes with IndexError.",type:"Runtime",tc:"run",diff:"Medium",dc:"background:rgba(59,130,246,.12);color:#93c5fd;",
+   buggy:"def last_element(items):\n    return items[len(items)]",
+   fix:"def last_element(items):\n    return items[len(items) - 1]",
+   hint:"Python list indices start at 0. If a list has 5 elements, indices are 0 through 4.",
+   explain:"items[len(items)] is always out of bounds. Use items[len(items) - 1] or simply items[-1]."},
+  {title:"Java NullPointerException",desc:"This Java method crashes with NullPointerException. Find the missing null check.",type:"Runtime",tc:"run",diff:"Medium",dc:"background:rgba(59,130,246,.12);color:#93c5fd;",
+   buggy:'public String getLength(String s) {\n    return "Length: " + s.length();\n}',
+   fix:'public String getLength(String s) {\n    if (s == null) return "null";\n    return "Length: " + s.length();\n}',
+   hint:"Before calling methods on an object in Java, always check if it's null first.",
+   explain:"Calling s.length() when s is null throws NullPointerException. Always null-check parameters before using them."},
+  {title:"C++ Memory leak",desc:"This C++ code allocates memory but never frees it — causing a memory leak.",type:"Logic",tc:"log",diff:"Hard",dc:"background:rgba(245,158,11,.12);color:#fcd34d;",
+   buggy:"int* createArray(int n) {\n    int* arr = new int[n];\n    return arr;\n}\n// caller never frees memory",
+   fix:"int* createArray(int n) {\n    int* arr = new int[n];\n    return arr;\n}\n// caller must: delete[] arr;",
+   hint:"In C++, every 'new' must have a matching 'delete' or 'delete[]' to free the memory.",
+   explain:"new int[n] allocates heap memory. Without delete[] arr in the caller, this memory leaks. Always pair new[] with delete[]."},
+  {title:"SQL JOIN returns wrong results",desc:"This SQL query should return customers with orders, but returns all customers.",type:"Logic",tc:"log",diff:"Medium",dc:"background:rgba(245,158,11,.12);color:#fcd34d;",
+   buggy:"SELECT c.name, o.amount\nFROM customers c\nLEFT JOIN orders o ON c.id = o.id;",
+   fix:"SELECT c.name, o.amount\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id;",
+   hint:"LEFT JOIN includes all rows from the left table even without matches. INNER JOIN only returns matching rows.",
+   explain:"LEFT JOIN returns all customers including those without orders. Use INNER JOIN to return only customers with orders. Also fixed: join on customer_id not id."},
+];
+
+/* ============================= MCQ BANK (90+ Questions) ============================= */
+const mcqBank={
+  Python:[
+    {q:"What is the output of print(type([]))?",opts:["<class 'list'>","<class 'array'>","list","[]"],ans:0,explain:"[] creates a Python list. type([]) returns <class 'list'>."},
+    {q:"Which keyword defines a function in Python?",opts:["function","fun","def","lambda"],ans:2,explain:"def is the keyword for defining named functions. lambda creates anonymous single-expression functions."},
+    {q:"What does the // operator do in Python?",opts:["Remainder","Floor division","True division","Bitwise OR"],ans:1,explain:"// is floor division — divides and rounds down to nearest integer. 7 // 2 = 3."},
+    {q:"Which is a mutable Python data type?",opts:["tuple","frozenset","int","list"],ans:3,explain:"Lists are mutable — you can change, add, or remove elements. Tuples and frozensets are immutable."},
+    {q:"What does *args do in a function definition?",opts:["Keyword args","Pointer","Variable positional args","None of these"],ans:2,explain:"*args captures variable number of positional arguments as a tuple inside the function."},
+    {q:"What is the output of bool('')?",opts:["True","False","None","Error"],ans:1,explain:"Empty string is falsy in Python. bool('') returns False. Non-empty strings are truthy."},
+    {q:"What does a Python decorator do?",opts:["Deletes a function","Wraps a function to modify behavior","Creates a class","Imports a module"],ans:1,explain:"A decorator wraps a function, adding behavior before/after it runs without modifying the original function."},
+    {q:"What is a Python generator?",opts:["List comprehension","Function using yield","Class method","Lambda function"],ans:1,explain:"A generator is a function that uses yield to produce values lazily, one at a time, saving memory."},
+    {q:"What does __init__ do in a Python class?",opts:["Imports the class","Deletes the object","Initializes a new object","Declares class variables"],ans:2,explain:"__init__ is the constructor — automatically called when a new object is created, initializing its attributes."},
+    {q:"What is the result of 3 ** 2 in Python?",opts:["6","8","9","32"],ans:2,explain:"** is the exponentiation operator. 3 ** 2 = 3² = 9."},
+  ],
+  JavaScript:[
+    {q:"Which keyword declares a block-scoped variable?",opts:["var","let","both","neither"],ans:1,explain:"let is block-scoped. var is function-scoped and hoisted — can cause bugs in loops."},
+    {q:"What does === check?",opts:["Value only","Type only","Value and type","Reference equality"],ans:2,explain:"=== (strict equality) checks both value AND type without coercion. 1 === '1' is false."},
+    {q:"What is typeof null?",opts:["null","undefined","object","boolean"],ans:2,explain:"typeof null returns 'object' — a well-known historical bug in JavaScript kept for backwards compatibility."},
+    {q:"Which method returns a new transformed array?",opts:["filter()","forEach()","map()","reduce()"],ans:2,explain:"map() applies a function to each element and returns a new array of the same length with results."},
+    {q:"What is a closure in JavaScript?",opts:["Function inside an array","Function remembering outer scope","Arrow function","async function"],ans:1,explain:"A closure is a function that retains access to variables from its enclosing scope even after that scope has finished."},
+    {q:"What does 'use strict' do?",opts:["Speeds up JS","Enables strict syntax rules","Disables closures","Blocks async"],ans:1,explain:"'use strict' enables strict mode, catching common mistakes like undeclared variables and duplicate parameters."},
+    {q:"What is the output of [] + []?",opts:["[]","\"\"","0","null"],ans:1,explain:"In JS, [] is coerced to empty string ''. So [] + [] = '' + '' = \"\"."},
+    {q:"What does async/await do?",opts:["Creates threads","Handles Promises with sync-like syntax","Blocks the main thread","Removes callbacks"],ans:1,explain:"async/await is syntactic sugar over Promises, making asynchronous code read like synchronous code."},
+    {q:"What is event bubbling?",opts:["Event fires multiple times","Child event propagates to parent","Event is canceled","Memory event"],ans:1,explain:"Event bubbling means an event fired on a child element propagates up through its parents in the DOM tree."},
+    {q:"What does JSON.stringify() return?",opts:["Object","Array","JSON string","undefined"],ans:2,explain:"JSON.stringify() converts a JavaScript value into a JSON-formatted string."},
+  ],
+  Java:[
+    {q:"What is the default value of an int in Java?",opts:["null","undefined","0","-1"],ans:2,explain:"In Java, uninitialized instance int fields default to 0. Local variables must be initialized before use."},
+    {q:"Which keyword prevents a class from being inherited?",opts:["static","private","final","abstract"],ans:2,explain:"final classes cannot be extended. final methods cannot be overridden. final variables are constants."},
+    {q:"What is autoboxing in Java?",opts:["Casting int to double","Auto conversion int↔Integer","Memory allocation","Garbage collection"],ans:1,explain:"Autoboxing automatically converts primitive types (int) to their wrapper classes (Integer) and vice versa."},
+    {q:"What does the 'volatile' keyword do?",opts:["Increases speed","Marks variable for GC","Ensures visibility across threads","Creates a constant"],ans:2,explain:"volatile ensures a variable's value is always read from and written to main memory, not thread-local cache."},
+    {q:"What is the difference between == and .equals() for Strings?",opts:["No difference","== checks reference, .equals() checks content","== checks content","Both check reference"],ans:1,explain:"== checks if two String variables point to the same object in memory. .equals() compares the actual string content."},
+    {q:"What is a checked exception in Java?",opts:["Exception caught at runtime","Exception checked at compile time","RuntimeException","Error class"],ans:1,explain:"Checked exceptions must be declared in method signature with throws or caught with try-catch at compile time."},
+    {q:"What does the 'transient' keyword do?",opts:["Creates a thread","Marks field to skip serialization","Makes field volatile","Declares an interface"],ans:1,explain:"transient tells Java serialization to skip this field when serializing the object."},
+    {q:"What is method overloading?",opts:["Child overrides parent method","Same method name different parameters","Abstract method","Static method"],ans:1,explain:"Method overloading: multiple methods with the same name but different parameter types or counts in the same class."},
+  ],
+  "C/C++":[
+    {q:"What does a pointer store in C?",opts:["A value","A memory address","A function","An array"],ans:1,explain:"A pointer stores the memory address of another variable. *ptr dereferences it to get the value."},
+    {q:"What is a segmentation fault?",opts:["Division by zero","Accessing invalid memory","Stack overflow","Syntax error"],ans:1,explain:"Segmentation fault occurs when a program tries to access memory it doesn't have permission to access (e.g., null pointer dereference)."},
+    {q:"What does 'new' do in C++?",opts:["Declares a variable","Allocates heap memory","Creates a function","Imports a library"],ans:1,explain:"new allocates memory on the heap and returns a pointer. Must be paired with delete to prevent memory leaks."},
+    {q:"What is the difference between stack and heap in C?",opts:["No difference","Stack is auto-managed, heap is manual","Heap is faster","Stack is larger"],ans:1,explain:"Stack memory is managed automatically (function calls). Heap memory is allocated/freed manually with malloc/free."},
+    {q:"What does 'const' mean in C++?",opts:["Creates a variable","Makes value unmodifiable","Speeds up execution","Declares a pointer"],ans:1,explain:"const declares a variable whose value cannot be changed after initialization. The compiler enforces this."},
+    {q:"What is a dangling pointer?",opts:["Null pointer","Pointer to freed memory","Wild pointer","Double pointer"],ans:1,explain:"A dangling pointer points to memory that has already been freed (deleted). Accessing it causes undefined behavior."},
+    {q:"What does malloc() return if allocation fails?",opts:["0","-1","NULL","throws exception"],ans:2,explain:"malloc() returns NULL if it cannot allocate the requested memory. Always check the return value."},
+    {q:"What is RAII in C++?",opts:["A design pattern","Resource acquisition via constructors/destructors","Random access iterator","A smart pointer"],ans:1,explain:"RAII (Resource Acquisition Is Initialization): resources are acquired in constructors and released in destructors, preventing leaks."},
+  ],
+  Web:[
+    {q:"What does the CSS 'box-model' consist of?",opts:["Content only","Content, padding, border, margin","Content and border","Width and height"],ans:1,explain:"The CSS box model consists of content, padding (inside border), border, and margin (outside border)."},
+    {q:"What does 'display: flex' do?",opts:["Hides element","Makes element flexible container","Creates grid","Adds animation"],ans:1,explain:"display: flex turns an element into a flex container, enabling powerful one-dimensional layout of its children."},
+    {q:"What is the difference between id and class in CSS?",opts:["No difference","id is unique, class can be reused","class is faster","id is for JS only"],ans:1,explain:"id (#) should be unique per page for one element. class (.) can be applied to multiple elements. id has higher specificity."},
+    {q:"What does the HTML 'alt' attribute on <img> do?",opts:["Sets image title","Provides text if image fails to load","Adds tooltip","Sets image size"],ans:1,explain:"alt provides alternative text displayed when the image can't load, and is essential for accessibility (screen readers)."},
+    {q:"What is CSS specificity?",opts:["How fast CSS loads","How CSS rules are prioritized","Z-index value","Media query strength"],ans:1,explain:"Specificity determines which CSS rule wins when multiple rules match the same element. inline > id > class > element."},
+    {q:"What does 'position: absolute' do?",opts:["Stays in document flow","Positioned relative to nearest positioned ancestor","Fixed to viewport","Same as relative"],ans:1,explain:"position: absolute removes the element from normal flow and positions it relative to its nearest positioned ancestor."},
+    {q:"What is the purpose of semantic HTML?",opts:["Makes code colorful","Gives meaning to content for browsers and accessibility","Speeds up loading","Adds animations"],ans:1,explain:"Semantic HTML uses meaningful tags (<header>, <nav>, <article>) that describe content purpose, helping SEO and accessibility."},
+    {q:"What does CSS 'z-index' control?",opts:["Zoom level","Stacking order of positioned elements","Transparency","Animation speed"],ans:1,explain:"z-index controls the stacking order of positioned elements. Higher values appear on top of lower values."},
+  ],
+  SQL:[
+    {q:"What does SELECT DISTINCT do?",opts:["Selects all rows","Returns unique values only","Sorts results","Filters by condition"],ans:1,explain:"SELECT DISTINCT returns only unique (non-duplicate) values from a column, eliminating repeated rows."},
+    {q:"What is the difference between WHERE and HAVING?",opts:["No difference","WHERE filters rows, HAVING filters groups","HAVING is faster","WHERE works with aggregates"],ans:1,explain:"WHERE filters individual rows before grouping. HAVING filters groups after GROUP BY and works with aggregate functions."},
+    {q:"What does JOIN ON do in SQL?",opts:["Creates a table","Combines rows from two tables based on a condition","Deletes rows","Updates rows"],ans:1,explain:"JOIN ON combines rows from two or more tables based on a related column condition between them."},
+    {q:"What does COUNT(*) return?",opts:["Sum of all values","Number of rows in result","Number of columns","Size in bytes"],ans:1,explain:"COUNT(*) returns the total number of rows in the result set, including rows with NULL values."},
+    {q:"What is a PRIMARY KEY?",opts:["First column","Unique identifier for each row","Foreign key reference","Index only"],ans:1,explain:"A PRIMARY KEY uniquely identifies each row in a table. It cannot be NULL and must be unique for every row."},
+    {q:"What does LEFT JOIN return?",opts:["Only matching rows","All left table rows + matching right rows","All right rows","Only unmatched rows"],ans:1,explain:"LEFT JOIN returns ALL rows from the left table, plus matched rows from the right table. Unmatched right values are NULL."},
+    {q:"What is a SQL transaction?",opts:["A query","A unit of work that is all-or-nothing","An index","A stored procedure"],ans:1,explain:"A transaction groups SQL operations so they all succeed or all fail together (ACID properties), ensuring data integrity."},
+    {q:"What does GROUP BY do?",opts:["Sorts rows","Groups rows with same values","Filters rows","Joins tables"],ans:1,explain:"GROUP BY groups rows that share the same values in specified columns, usually used with aggregate functions like COUNT, SUM."},
+  ],
+  DSA:[
+    {q:"Time complexity of binary search?",opts:["O(n)","O(log n)","O(n²)","O(1)"],ans:1,explain:"Binary search halves the search space each step — O(log n). Much faster than linear search O(n) for sorted data."},
+    {q:"Which data structure uses LIFO?",opts:["Queue","Stack","Linked list","Heap"],ans:1,explain:"Stack uses Last In First Out (LIFO). The last element pushed is the first one popped."},
+    {q:"What is the worst-case complexity of Merge Sort?",opts:["O(n²)","O(n log n)","O(n)","O(log n)"],ans:1,explain:"Merge Sort is O(n log n) in all cases — best, average, and worst. It always divides and merges."},
+    {q:"What is a hash table's average lookup time?",opts:["O(n)","O(log n)","O(1)","O(n²)"],ans:2,explain:"Hash tables provide O(1) average-case lookup by using a hash function to directly index into an array."},
+    {q:"Which traversal visits Left → Root → Right?",opts:["Pre-order","In-order","Post-order","Level-order"],ans:1,explain:"In-order traversal: Left → Root → Right. For a BST, this produces sorted ascending output."},
+    {q:"What is the time complexity of quicksort average case?",opts:["O(n²)","O(n log n)","O(n)","O(log n)"],ans:1,explain:"Quicksort averages O(n log n). Worst case is O(n²) when the pivot is always min/max — avoided with good pivot selection."},
+    {q:"What is Dynamic Programming?",opts:["Recursive only","Stores subproblem results to avoid recomputation","Sorts an array","Graph traversal"],ans:1,explain:"Dynamic Programming solves complex problems by breaking them into subproblems and storing results (memoization/tabulation) to avoid recomputation."},
+    {q:"What is a graph BFS used for?",opts:["Sorting","Shortest path in unweighted graph","Depth first search","Binary search"],ans:1,explain:"BFS (Breadth-First Search) finds the shortest path in unweighted graphs by exploring all nodes at the current depth before going deeper."},
+    {q:"What is a balanced BST?",opts:["Any BST","BST where heights of subtrees differ by at most 1","Full BST","Sorted array"],ans:1,explain:"A balanced BST keeps the heights of left and right subtrees within 1 of each other, ensuring O(log n) operations."},
+    {q:"What is a priority queue?",opts:["Regular queue","Queue where highest priority element is served first","Stack with priorities","Sorted linked list"],ans:1,explain:"A priority queue serves the element with the highest (or lowest) priority first, regardless of insertion order. Usually implemented with a heap."},
+  ],
+  OOP:[
+    {q:"What is encapsulation?",opts:["Inheriting from parent","Bundling data and methods, hiding internals","Overriding methods","Creating multiple objects"],ans:1,explain:"Encapsulation bundles data (fields) and methods that operate on that data into a class, controlling access to internals."},
+    {q:"What is the Liskov Substitution Principle?",opts:["Classes should be small","Subtypes should be substitutable for base types","One responsibility per class","Depend on abstractions"],ans:1,explain:"LSP states that objects of a superclass should be replaceable with objects of a subclass without breaking the program."},
+    {q:"What is method overriding?",opts:["Two methods same name same class","Child class redefines parent method","Static method","Overloaded constructor"],ans:1,explain:"Method overriding: a subclass provides its own specific implementation of a method already defined in its parent class."},
+    {q:"What is the difference between abstract class and interface?",opts:["No difference","Abstract can have implementations, interface is pure contract","Interface is faster","Abstract is for Java only"],ans:1,explain:"Abstract classes can have implemented methods and instance variables. Interfaces (traditionally) are pure contracts — all abstract methods."},
+    {q:"What is polymorphism?",opts:["One class many objects","Same interface different behavior per type","Hiding data","Single inheritance"],ans:1,explain:"Polymorphism: objects of different types respond to the same method call in their own unique way."},
+    {q:"What is the Single Responsibility Principle?",opts:["One class per file","A class should have only one reason to change","Single inheritance only","One method per class"],ans:1,explain:"SRP: each class should have exactly one job/responsibility, so it only changes for one reason."},
+    {q:"What is composition vs inheritance?",opts:["Same thing","Composition: has-a relationship; Inheritance: is-a","Composition is slower","Inheritance is preferred always"],ans:1,explain:"Inheritance models 'is-a' (Dog is-a Animal). Composition models 'has-a' (Car has-a Engine). Composition is often preferred for flexibility."},
+    {q:"What does 'self' refer to in Python OOP?",opts:["The class itself","The parent class","The current instance","A global variable"],ans:2,explain:"self refers to the specific object instance the method is being called on, giving access to its attributes and methods."},
+  ],
+  Rust:[
+    {q:"What is Rust's ownership system?",opts:["Garbage collection","Each value has one owner; freed when owner leaves scope","Manual malloc/free","Reference counting only"],ans:1,explain:"Rust's ownership system ensures each value has exactly one owner. When the owner goes out of scope, the value is automatically freed — no GC needed."},
+    {q:"What is a Rust 'borrow'?",opts:["Moving ownership","A reference that doesn't take ownership","Copying a value","Cloning"],ans:1,explain:"Borrowing (&T or &mut T) lets you reference a value without taking ownership. Rust enforces borrow rules at compile time."},
+    {q:"What does 'mut' mean in Rust?",opts:["Multiple types","Mutable — allows modification","Memory utility","Method"],ans:1,explain:"By default, all variables in Rust are immutable. Adding 'mut' makes a variable mutable, allowing its value to change."},
+    {q:"What is Rust's Option type?",opts:["Error handling","Represents a value that may or may not be present","Integer option","Thread option"],ans:1,explain:"Option<T> is either Some(value) or None — Rust's null-safe way to represent optional values without null pointer issues."},
+    {q:"What is Rust's Result type?",opts:["Test result","Ok(value) or Err(error) for error handling","Optional value","Function return"],ans:1,explain:"Result<T, E> is either Ok(value) or Err(error). Rust uses it instead of exceptions for explicit, compile-time-checked error handling."},
+    {q:"What does 'cargo' do in Rust?",opts:["Manages memory","Build system and package manager","Compiles to assembly","Thread manager"],ans:1,explain:"Cargo is Rust's build system and package manager. It handles compiling, dependencies (crates), testing, and publishing."},
+  ],
+};
+
+/* ============================= STATE ============================= */
+let xp=0,solvedBugs=0,mcqCorrect=0,currentCh=0,hintOn=false,revealed=false;
+let currentUser={name:'',ini:'ST',provider:''};
+let selectedLang='Python',currentTopic='Python';
+let mcqAnswers={},mcqSubmitted=false;
+
+/* ============================= GAME ============================= */
+function buildProgress(){
+  const r=document.getElementById('ig-prog2');r.innerHTML='';
+  challenges.forEach((_,i)=>{const d=document.createElement('div');d.className='ig-ps2'+(i<currentCh?' d':i===currentCh?' c':'');r.appendChild(d);});
+}
+function loadChallenge(){
+  const c=challenges[currentCh];
+  document.getElementById('ig-ta').value=c.buggy;
+  document.getElementById('ig-title2').textContent=c.title;
+  document.getElementById('ig-desc2').textContent=c.desc;
+  const bb=document.getElementById('ig-badge2');bb.textContent=c.type+' Error';bb.className='ig-badge2 '+c.tc;
+  const db=document.getElementById('ig-diff2');db.textContent=c.diff;db.style.cssText=c.dc+'font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;';
+  document.getElementById('ig-hint2').textContent='💡 '+c.hint;
+  document.getElementById('ig-hint2').className='ig-hint2';
+  document.getElementById('ig-fb2').className='ig-fb2';
+  document.getElementById('ig-nxt2').className='ig-nxt2';
+  hintOn=false;revealed=false;buildProgress();
+}
+function toggleHint(){
+  if(!hintOn&&xp>=5)xp-=5;
+  hintOn=!hintOn;
+  document.getElementById('ig-hint2').className='ig-hint2'+(hintOn?' on':'');
+  updateHdr();
+}
+function norm(s){return s.replace(/\s+/g,' ').trim();}
+function checkSol(){
+  if(revealed)return;
+  const val=document.getElementById('ig-ta').value;
+  const fb=document.getElementById('ig-fb2'),nw=document.getElementById('ig-nxt2');
+  if(norm(val)===norm(challenges[currentCh].fix)){
+    const gain=hintOn?15:20;xp+=gain;solvedBugs++;
+    updateHdr();updateProgPanel();
+    fb.className='ig-fb2 on ok';fb.innerHTML='<b>✅ Correct!</b> +'+gain+' XP<br><br>'+challenges[currentCh].explain;
+    nw.className='ig-nxt2 on';buildProgress();
+  } else {
+    fb.className='ig-fb2 on err';fb.innerHTML='<b>❌ Not quite.</b> Check every character carefully — colons, operators, indentation, and spacing all matter.';
+  }
+}
+function revealAns(){
+  document.getElementById('ig-ta').value=challenges[currentCh].fix;
+  document.getElementById('ig-fb2').className='ig-fb2 on err';
+  document.getElementById('ig-fb2').innerHTML='<b>👁 Revealed.</b> '+challenges[currentCh].explain;
+  document.getElementById('ig-nxt2').className='ig-nxt2 on';revealed=true;
+}
+function nextCh(){currentCh=(currentCh+1)%challenges.length;loadChallenge();}
+
+/* ============================= MCQ ============================= */
+const topicKeys=Object.keys(mcqBank);
+const topicLabels={Python:'Python',JavaScript:'JavaScript',Java:'Java',"C/C++":'C / C++',Web:'Web Dev',SQL:'SQL',DSA:'DSA',OOP:'OOP Concepts',Rust:'Rust'};
+function loadMCQ(){
+  const tr=document.getElementById('it-pills2');tr.innerHTML='';
+  topicKeys.forEach(t=>{
+    const b=document.createElement('button');b.className='itp2'+(t===currentTopic?' on':'');
+    b.textContent=topicLabels[t]||t;b.onclick=()=>selectTopic(t,b);tr.appendChild(b);
+  });renderMCQ();
+}
+function selectTopic(t,el){
+  currentTopic=t;mcqAnswers={};mcqSubmitted=false;
+  document.querySelectorAll('.itp2').forEach(b=>b.className='itp2');el.className='itp2 on';renderMCQ();
+}
+function renderMCQ(){
+  const qs=mcqBank[currentTopic],c=document.getElementById('imcq-c2');
+  c.innerHTML='';document.getElementById('imcq-sub2').style.display='inline-flex';
+  qs.forEach((q,qi)=>{
+    const card=document.createElement('div');card.className='imcq-card2';
+    card.innerHTML=`<div class="imcq-meta2"><span class="imcq-num2">Q${qi+1} / ${qs.length}</span><span class="imcq-tp2">${topicLabels[currentTopic]||currentTopic}</span></div>
+    <div class="imcq-q2">${q.q}</div>
+    <div class="imcq-opts2" id="iopts2-${qi}">${q.opts.map((o,oi)=>`<div class="iopt2" onclick="selOpt2(${qi},${oi})"><span class="iopt2-l">${'ABCD'[oi]}</span>${o}</div>`).join('')}</div>
+    <div class="iexpl2" id="iexp2-${qi}">${q.explain}</div>`;
+    c.appendChild(card);
+  });
+}
+function selOpt2(qi,oi){
+  if(mcqSubmitted)return;
+  mcqAnswers[qi]=oi;
+  document.querySelectorAll(`#iopts2-${qi} .iopt2`).forEach((el,i)=>el.className='iopt2'+(i===oi?' sel':''));
+}
+function submitMCQ(){
+  const qs=mcqBank[currentTopic];
+  if(Object.keys(mcqAnswers).length<qs.length){alert('Please answer all '+qs.length+' questions first.');return;}
+  mcqSubmitted=true;let correct=0;
+  qs.forEach((q,qi)=>{
+    const chosen=mcqAnswers[qi];
+    document.querySelectorAll(`#iopts2-${qi} .iopt2`).forEach((el,i)=>el.className='iopt2'+(i===q.ans?' ok3':i===chosen&&chosen!==q.ans?' no3':''));
+    document.getElementById('iexp2-'+qi).className='iexpl2 on';
+    if(chosen===q.ans)correct++;
+  });
+  const gain=correct*10;mcqCorrect+=correct;xp+=gain;updateHdr();updateProgPanel();
+  const banner=document.createElement('div');banner.className='iscore-banner2';
+  const pct=Math.round(correct/qs.length*100);
+  banner.innerHTML=`<div class="iscore-n2">${correct}/${qs.length}</div><div class="iscore-l2">${pct}% correct · +${gain} XP · ${pct>=80?'🎉 Excellent!':pct>=60?'👍 Good work!':'💪 Keep going!'}</div>`;
+  document.getElementById('imcq-c2').prepend(banner);
+  document.getElementById('imcq-sub2').style.display='none';
+}
+function resetMCQ(){mcqAnswers={};mcqSubmitted=false;renderMCQ();}
+
+/* ============================= ANALYZER ============================= */
+function setLang(lang,el){
+  selectedLang=lang;
+  document.querySelectorAll('.ilang2').forEach(b=>b.className='ilang2');el.className='ilang2 on';
+}
+async function analyzeCode(){
+  const code=document.getElementById('ian-ta').value.trim();
+  if(!code){alert('Please paste some code first.');return;}
+  const res=document.getElementById('ian-result');
+  res.innerHTML=`<div class="iissue2 o" style="animation:robotBob .5s ease-in-out infinite;"><div class="iissue2-t">🤖 Robot analyzing your ${selectedLang} code...</div><div class="iissue2-b">Sending to Claude AI — this takes about 2 seconds.</div></div>`;
+  const prompt=`You are an expert programming tutor robot. Analyze this ${selectedLang} code for bugs and improvements. Respond ONLY with a valid JSON array, no markdown, no backticks. Each item: "type" (exactly "error"|"warning"|"ok"), "title" (max 6 words), "body" (1-2 sentences), optional "fix" (one corrected line). Include at least one "ok" if code has any good aspects. Max 6 items total.\n\nCode:\n${code}`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const data=await r.json();
+    if(data.error)throw new Error(data.error.message);
+    const text=data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
+    const issues=JSON.parse(text);
+    res.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--faint);font-family:var(--mono);">🤖 Robot found ${issues.length} item${issues.length!==1?'s':''}:</div>`+issues.map(iss=>`<div class="iissue2 ${iss.type==='error'?'e':iss.type==='warning'?'w':'o'}"><div class="iissue2-t">${iss.type==='error'?'❌ Error':iss.type==='warning'?'⚠️ Warning':'✅ Good'}: ${iss.title}</div><div class="iissue2-b">${iss.body}</div>${iss.fix?`<div class="iissue2-fix">Fix: ${iss.fix}</div>`:''}</div>`).join('');
+  }catch(e){
+    res.innerHTML=`<div class="iissue2 e"><div class="iissue2-t">❌ Analysis failed</div><div class="iissue2-b">${e.message}. Check internet connection and try again.</div></div>`;
+  }
+}
+
+/* ============================= PROGRESS PANEL ============================= */
+const badgeList=[
+  {icon:'🐛',name:'First fix',earned:()=>solvedBugs>=1},
+  {icon:'⚡',name:'5 in a row',earned:()=>solvedBugs>=5},
+  {icon:'🔤',name:'Syntax pro',earned:()=>solvedBugs>=3},
+  {icon:'📝',name:'Quiz starter',earned:()=>mcqCorrect>=5},
+  {icon:'🤖',name:'AI user',earned:()=>false},
+  {icon:'🧠',name:'Logic king',earned:()=>false},
+  {icon:'🔥',name:'10 streak',earned:()=>false},
+  {icon:'💨',name:'Speed demon',earned:()=>false},
+  {icon:'🌍',name:'All languages',earned:()=>false},
+  {icon:'💯',name:'Perfect score',earned:()=>false},
+];
+
+/* BUG 3 FIX: buildProgressPanel now creates ALL user-info elements including
+   ip-av2, ip-name2, ip-xp2b, ip-provider correctly before they are needed. */
+function buildProgressPanel(){
+  const provLabel=currentUser.provider==='github'?'GitHub':currentUser.provider==='google'?'Google':'Email';
+  const provClass=currentUser.provider==='github'?'gh':currentUser.provider==='google'?'go':'em';
+
+  const bg=document.getElementById('badges-grid');
+  bg.innerHTML=badgeList.map(b=>`<div class="ibdg2 ${b.earned()?'earned':'locked'}"><div class="ibdg2-icon" style="background:rgba(${b.earned()?'0,255,170':'255,255,255'},.08);">${b.icon}</div><div class="ibdg2-nm">${b.name}</div></div>`).join('');
+
+  // BUG 3 FIX: ip-provider is now properly added to the "me" leaderboard row
+  document.getElementById('lb-inner').innerHTML=`
+    <div class="ilb2-row"><span class="ilb2-rk">1</span><div class="ilb2-av" style="background:#1e1830;color:#c4b5fd;">SA</div><span class="ilb2-nm">Sara A.</span><span class="ilb2-xp">1,240 XP</span></div>
+    <div class="ilb2-row"><span class="ilb2-rk">2</span><div class="ilb2-av" style="background:#0b1e14;color:#5DCAA5;">JM</div><span class="ilb2-nm">João M.</span><span class="ilb2-xp">980 XP</span></div>
+    <div class="ilb2-row me3">
+      <span class="ilb2-rk">3</span>
+      <div class="ilb2-av" id="ip-av2" style="background:#081a0e;color:var(--green);">${currentUser.ini}</div>
+      <span class="ilb2-nm" id="ip-name2">${currentUser.name||'You'}</span>
+      <span class="ilb2-xp" id="ip-xp2b">${xp} XP</span>
+      <span class="ilb2-prov ${provClass}" id="ip-provider">${provLabel}</span>
+    </div>
+    <div class="ilb2-row"><span class="ilb2-rk">4</span><div class="ilb2-av" style="background:#1e1508;color:#fcd34d;">RK</div><span class="ilb2-nm">Riya K.</span><span class="ilb2-xp">290 XP</span></div>
+    <div class="ilb2-row"><span class="ilb2-rk">5</span><div class="ilb2-av" style="background:#1e0a0a;color:#fca5a5;">TL</div><span class="ilb2-nm">Tim L.</span><span class="ilb2-xp">155 XP</span></div>`;
+}
+
+/* ============================= HELPERS ============================= */
+function updateHdr(){
+  document.getElementById('am-xp').textContent=xp;
+  const lv=Math.floor(xp/200)+1;
+  document.getElementById('am-lv').textContent=lv;
+  document.getElementById('am-xbar').style.width=((xp%200)/200*100)+'%';
+}
+function updateProgPanel(){
+  document.getElementById('ip-bugs2').textContent=solvedBugs;
+  document.getElementById('ip-mcq2').textContent=mcqCorrect;
+  document.getElementById('ip-xp2').textContent=xp;
+  buildProgressPanel();
+}
+function switchTab(id){
+  document.querySelectorAll('.app-tab2').forEach((t,i)=>{const ids=['game','mcq','analyzer','progress'];t.className='app-tab2'+(ids[i]===id?' on':'');});
+  document.querySelectorAll('.app-panel').forEach(p=>p.className='app-panel');
+  document.getElementById('ap-'+id).className='app-panel on';
+}
+
+/* ============================= KEYBOARD ============================= */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeApp();closeAuth();}
+  if(e.key==='Enter'&&document.getElementById('auth-overlay').classList.contains('open')){
+    const loginVisible=document.getElementById('form-login-inner').style.display!=='none'&&
+                       document.getElementById('form-login-inner').style.opacity!=='0.4';
+    if(loginVisible)doLogin();else doSignup();
+  }
+});
+</script>
+</body>
+</html>
